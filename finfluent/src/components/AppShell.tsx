@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, User, Award, BookOpen, LogOut, Activity } from 'lucide-react'; // Added Activity icon
+import { Home, User, Award, BookOpen, LogOut, Activity } from 'lucide-react'; 
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import AIChatBot from './AIChatBot';
@@ -9,8 +9,18 @@ import AIChatBot from './AIChatBot';
 // Using static logo for UI, keeping mascot for chat, fincoin for wealth
 import logo from '../assets/logo.png';
 import fincoin from '../assets/fincoin.gif';
+import streakGif from '../assets/Streak.gif'; // NEW: Import the animated streak gif
 
-// Upgraded active styling to match the new dark premium theme
+// Custom component to make the GIF act like a Lucide Icon in the nav mapping
+const StreakIcon = ({ size, className }: { size?: number, className?: string }) => (
+  <img 
+    src={streakGif} 
+    alt="Streak" 
+    style={{ width: size, height: size }} 
+    className={`object-contain transition-all duration-300 ${className} ${className?.includes('text-white/40') ? 'grayscale opacity-60' : 'drop-shadow-[0_0_10px_rgba(249,115,22,0.8)]'}`} 
+  />
+);
+
 const navLinkClasses = ({ isActive }: { isActive: boolean }) => 
   `flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
     isActive 
@@ -24,18 +34,18 @@ export default function AppShell() {
   const navItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
     { to: '/modules', icon: BookOpen, label: 'Lessons' },
-    { to: '/stocks', icon: Activity, label: 'Market' }, // NEW: Added Stocks link
+    { to: '/stocks', icon: Activity, label: 'Market' },
+    { to: '/streak', icon: StreakIcon, label: 'Streak' }, // Replaced Flame with StreakIcon
     { to: '/leaderboard', icon: Award, label: 'Leaderboard' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/login'; // Force reload to clear all states
+    window.location.href = '/login'; 
   };
 
   return (
-    // STRICT FIX: h-[100dvh] fixes mobile scrolling forever
     <div className="flex h-[100dvh] w-full bg-[#070b14] text-white overflow-hidden animate-fade-in relative font-sans">
       
       {/* 🌌 AMBIENT GLOWS */}
@@ -45,15 +55,15 @@ export default function AppShell() {
       {/* ========================================== */}
       {/* DESKTOP SIDEBAR */}
       {/* ========================================== */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#0f172a]/70 backdrop-blur-3xl border-r border-white/5 p-6 z-20 shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
+      <aside className="hidden md:flex flex-col w-64 bg-[#0f172a]/70 backdrop-blur-3xl border-r border-white/5 p-6 z-20 shadow-[20px_0_50px_rgba(0,0,0,0.5)] overflow-y-auto">
         
-        <div className="flex items-center gap-3 mb-10">
+        <div className="flex items-center gap-3 mb-10 shrink-0">
           <img src={logo} alt="Finfluent" className="w-10 h-10 object-contain drop-shadow-lg" />
           <h1 className="text-2xl font-black tracking-tight text-white">Finfluent</h1>
         </div>
 
         {/* Wealth Display */}
-        <div className="mb-8 p-4 rounded-2xl bg-gradient-to-br from-black/40 to-black/60 border border-white/10 flex items-center justify-between shadow-inner">
+        <div className="mb-8 p-4 rounded-2xl bg-gradient-to-br from-black/40 to-black/60 border border-white/10 flex items-center justify-between shadow-inner shrink-0">
           <div className="flex flex-col z-10">
             <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Wealth</span>
             <span className="font-black text-xl text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{user?.spendable_fin_coins || 0}</span>
@@ -74,7 +84,7 @@ export default function AppShell() {
         {/* Desktop Logout Button */}
         <button 
           onClick={handleLogout}
-          className="mt-auto flex items-center gap-3 p-3 rounded-xl text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all font-bold group z-10"
+          className="mt-8 shrink-0 flex items-center gap-3 p-3 rounded-xl text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all font-bold group z-10"
         >
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> Logout
         </button>
@@ -111,12 +121,12 @@ export default function AppShell() {
       {/* ========================================== */}
       {/* MOBILE BOTTOM NAVBAR */}
       {/* ========================================== */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#0f172a]/95 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center p-2 pb-6 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#0f172a]/95 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center p-2 pb-6 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
         {navItems.map((item) => (
           <NavLink 
             key={item.to} 
             to={item.to} 
-            className={({ isActive }) => `p-3 rounded-2xl transition-all ${isActive ? 'bg-blue-600/20 shadow-inner' : ''}`}
+            className={({ isActive }) => `p-3 rounded-2xl transition-all shrink-0 ${isActive ? 'bg-blue-600/20 shadow-inner' : ''}`}
           >
             {({ isActive }) => (
               <item.icon 
@@ -128,7 +138,6 @@ export default function AppShell() {
         ))}
       </nav>
 
-      {/* THE PERSISTENT AI BRAIN */}
       <AIChatBot />
     </div>
   );
