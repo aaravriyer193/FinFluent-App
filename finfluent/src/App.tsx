@@ -8,47 +8,37 @@ import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Module from './pages/Module';
 import Profile from './pages/Profile';
+import Lessons from './pages/Lessons';
+import Leaderboard from './pages/Leaderboard';
 
 // ==========================================
 // THE BOUNCERS (Route Guards)
 // ==========================================
 
-// 1. Protects the Main App (Dashboard, Modules, Profile)
 const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const { session, user, loading } = useAppContext();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-background text-white/50">
-        <img src="/src/assets/mascot.gif" alt="Loading..." className="w-16 h-16 mb-4 animate-pulse" />
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0f172a] text-white/50">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
         Authenticating...
       </div>
     );
   }
 
-  // Not logged in? Kick to login.
-  if (!session) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+  if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (user && !user.has_completed_onboarding) return <Navigate to="/onboarding" replace />;
 
-  // Logged in, but skipped the AI interview? Trap them in Onboarding.
-  if (user && !user.has_completed_onboarding) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  // They are worthy. Let them in.
   return <>{children}</>;
 };
 
-// 2. Protects the Onboarding Page (Only for logged-in newbies)
 const RequireOnboarding = ({ children }: { children: React.ReactNode }) => {
   const { session, user, loading } = useAppContext();
 
-  if (loading) return null; // Wait for state to settle
-
+  if (loading) return null; 
   if (!session) return <Navigate to="/login" replace />;
-  
   if (user?.has_completed_onboarding) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
@@ -62,37 +52,18 @@ export default function App() {
 
   return (
     <Routes>
-      {/* PUBLIC ROUTE: If they are already logged in, push them away from Login */}
-      <Route 
-        path="/login" 
-        element={session ? <Navigate to="/dashboard" replace /> : <Login />} 
-      />
+      <Route path="/login" element={session ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/onboarding" element={<RequireOnboarding><Onboarding /></RequireOnboarding>} />
 
-      {/* ONBOARDING ROUTE: "Happens Only Once" Rule Enforced */}
-      <Route 
-        path="/onboarding" 
-        element={
-          <RequireOnboarding>
-            <Onboarding />
-          </RequireOnboarding>
-        } 
-      />
-
-      {/* PROTECTED APP ROUTES: Enforces Auth & Onboarding */}
-      <Route 
-        element={
-          <RequireAuth>
-            <AppShell />
-          </RequireAuth>
-        }
-      >
+      <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/module/:moduleId" element={<Module />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/modules" element={<Lessons />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
       </Route>
 
-      {/* Catch-all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

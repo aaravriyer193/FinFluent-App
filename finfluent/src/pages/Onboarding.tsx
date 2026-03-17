@@ -1,65 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Send, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Loader2, Rocket } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { generateAIResponse } from '../lib/openrouter';
 
-// Explicit Asset Imports
-import random2 from '../assets/random2.png';
+import random2 from '../assets/random5.png';
 import mascot from '../assets/mascot.gif';
-
-const ONBOARDING_QUESTIONS = [
-  "What is your single biggest financial goal right now?",
-  "How would you describe your current experience with investing?",
-  "What is your biggest frustration when it comes to managing money?",
-  "If you had an extra $1,000 right now, what would you do with it?",
-  "Are you more focused on saving money or growing your income?"
-];
+import logo from '../assets/logo.png';
 
 export default function Onboarding() {
   const { user, refreshUserData } = useAppContext();
   const navigate = useNavigate();
   
-  const [step, setStep] = useState(0);
   const [input, setInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'assistant' | 'user', content: string}[]>([
-    { role: 'assistant', content: `Hey there! I'm your Finfluent Tutor. Before we unlock your modules, I need to get to know you. Question 1: ${ONBOARDING_QUESTIONS[0]}` }
+    { role: 'assistant', content: `Hey ${user?.full_name?.split(' ')[0] || 'there'}! I'm your Finfluent Tutor. 🚀\n\nI'm here to help you secure that bag. Tell me a bit about your financial goals, or if you're ready to jump straight into the action, just hit **Enter Finfluent**!` }
   ]);
   const [isTyping, setIsTyping] = useState(false);
-  const [answers, setAnswers] = useState<string[]>([]);
+  const [isLocking, setIsLocking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll logic
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isTyping]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isTyping || step >= 5) return;
+    if (!input.trim() || isTyping) return;
 
     const userAnswer = input.trim();
     setInput('');
-    const currentStep = step;
-    
-    const newAnswers = [...answers, userAnswer];
-    setAnswers(newAnswers);
     
     const updatedHistory = [...chatHistory, { role: 'user' as const, content: userAnswer }];
     setChatHistory(updatedHistory);
     
+    // Add the empty placeholder (The loading dots will render INSIDE this now)
     setChatHistory(prev => [...prev, { role: 'assistant', content: '' }]);
     setIsTyping(true);
-    setStep(currentStep + 1);
 
-    const isFinished = currentStep === 4;
-    const aiPrompt = isFinished 
-      ? `The user just answered the final question: "${userAnswer}". Give a brief, hype 2-sentence congratulatory response welcoming them to Finfluent.`
-      : `The user answered: "${userAnswer}". Give a brief, encouraging 1-sentence reaction, and then explicitly ask this exact next question: "${ONBOARDING_QUESTIONS[currentStep + 1]}"`;
+    const aiPrompt = `The user says: "${userAnswer}". You are the Finfluent AI Tutor. Give a hype, encouraging, 1-to-2 sentence response. Use markdown. Keep it a general conversation about their financial goals.`;
 
     await generateAIResponse(
-      aiPrompt, null, updatedHistory.slice(-2),
+      aiPrompt, null, updatedHistory.slice(-4),
       (chunkText) => {
         setChatHistory(prev => {
           const newH = [...prev];
@@ -70,96 +56,125 @@ export default function Onboarding() {
     );
 
     setIsTyping(false);
-
-    if (isFinished) {
-      await completeOnboarding(newAnswers);
-    }
   };
 
-  const completeOnboarding = async (finalAnswers: string[]) => {
+  const completeOnboarding = async () => {
     if (!user) return;
+    setIsLocking(true);
+    
     try {
-      const logs = finalAnswers.map((ans, idx) => ({
-        user_id: user.id, question_number: idx + 1, question: ONBOARDING_QUESTIONS[idx], answer: ans
-      }));
-      await supabase.from('onboarding_logs').insert(logs);
-
-      const aiContext = { baseline: finalAnswers.join(" | ") };
-
-      await supabase.from('profiles').update({ has_completed_onboarding: true, ai_context_summary: aiContext }).eq('id', user.id);
+      // Save their free-flowing chat as a baseline summary
+      const aiContext = { baseline: chatHistory.map(m => m.content).join(" | ") };
+      await supabase.from('profiles').update({ 
+        has_completed_onboarding: true, 
+        ai_context_summary: aiContext 
+      }).eq('id', user.id);
         
       await refreshUserData();
-      setTimeout(() => navigate('/dashboard'), 3000); 
+      navigate('/dashboard'); 
     } catch (error) {
       console.error("Error saving onboarding data:", error);
+      setIsLocking(false);
     }
   };
 
   return (
-    // FORCING DARK MODE HERE
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#0f172a] text-white relative overflow-hidden">
-      <img src={random2} alt="Decor" className="absolute top-10 left-10 opacity-10 w-64 h-64 pointer-events-none object-contain" />
+    // STRICT FIX: h-[100dvh] prevents mobile address bar scrolling
+    <div className="h-[100dvh] w-full flex flex-col md:flex-row bg-[#070b14] text-white overflow-hidden font-sans">
       
-      <motion.div 
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white/5 backdrop-blur-xl w-full max-w-2xl h-[600px] flex flex-col rounded-3xl shadow-2xl border border-white/10 overflow-hidden relative z-10"
-      >
-        <div className="p-6 border-b border-white/10 flex items-center justify-between bg-black/20">
+      {/* 🌌 AMBIENT BACKGROUND GLOWS */}
+      <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
+
+      {/* LEFT SIDE: Briefing (Hidden on Mobile to maximize chat space) */}
+      <div className="hidden md:flex flex-col justify-between w-1/3 p-12 relative z-10 border-r border-white/5 bg-[#0f172a]/50 backdrop-blur-2xl">
+        <div>
+          <div className="flex items-center gap-3 mb-16">
+            <img src={logo} alt="Finfluent" className="w-12 h-12 object-contain" />
+            <h1 className="text-3xl font-black tracking-tight">Finfluent</h1>
+          </div>
+          <h2 className="text-4xl font-black mb-4 tracking-tight leading-tight">Welcome to<br/><span className="text-blue-400">The Platform.</span></h2>
+          <p className="text-white/60 text-lg mb-12">Chat with your tutor to set your goals, or enter the platform immediately.</p>
+        </div>
+        <motion.img animate={{ y: [0, -20, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} src={random2} alt="Decor" className="w-full max-w-xs object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)] self-center" />
+      </div>
+
+      {/* RIGHT SIDE: Strictly Constrained Chat Flexbox */}
+      <div className="flex-1 flex flex-col min-h-0 relative z-10 bg-transparent">
+        
+        {/* Header with the Enter Button */}
+        <div className="shrink-0 p-4 md:p-6 border-b border-white/10 flex items-center justify-between bg-[#0f172a]/80 backdrop-blur-xl shadow-md">
           <div className="flex items-center gap-3">
-            <img src={mascot} alt="Mascot" className="w-10 h-10 object-contain" />
-            <div>
-              <h1 className="font-bold text-lg">Financial Profiling</h1>
-              <p className="text-xs text-white/50">Step {Math.min(step + 1, 5)} of 5</p>
-            </div>
+            <img src={logo} alt="Logo" className="w-8 h-8 md:hidden" />
+            <h1 className="font-black text-lg text-white">Setup Profile</h1>
           </div>
-          <div className="w-32 h-2 bg-black/50 rounded-full overflow-hidden">
-            <motion.div className="h-full bg-blue-500" initial={{ width: 0 }} animate={{ width: `${(step / 5) * 100}%` }} />
-          </div>
+          <button 
+            onClick={completeOnboarding}
+            disabled={isLocking}
+            className="flex items-center gap-2 bg-blue-600 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+          >
+            {isLocking ? <Loader2 className="animate-spin" size={18} /> : <><Rocket size={18} /> Enter Finfluent</>}
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
-          {chatHistory.map((msg, i) => (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] p-4 rounded-2xl text-sm md:text-base leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white font-medium rounded-br-sm shadow-md' : 'bg-white/10 text-white border border-white/5 rounded-bl-sm'}`}>
-                {msg.content}
-              </div>
-            </motion.div>
-          ))}
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 p-4 rounded-2xl rounded-bl-sm border border-white/5 flex gap-1 items-center">
-                <motion.div className="w-2 h-2 bg-white/50 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} />
-                <motion.div className="w-2 h-2 bg-white/50 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} />
-                <motion.div className="w-2 h-2 bg-white/50 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} />
-              </div>
-            </div>
-          )}
-          {step >= 5 && !isTyping && (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center mt-4 text-sm text-green-400 font-bold flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                Profile Complete. Preparing your dashboard...
-             </motion.div>
-          )}
-          <div ref={messagesEndRef} />
+        {/* Chat History Area (This is the ONLY thing that scrolls) */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 scroll-smooth">
+          <AnimatePresence>
+            {chatHistory.map((msg, i) => {
+              // THE BUG FIX: Identify if this is the empty streaming bubble
+              const isStreamingPlaceholder = msg.role === 'assistant' && !msg.content;
+
+              return (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={i} 
+                  className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {msg.role === 'assistant' && <img src={mascot} alt="Tutor" className="w-10 h-10 object-contain mr-3 self-end drop-shadow-lg" />}
+                  
+                  <div className={`max-w-[85%] md:max-w-[70%] p-4 md:p-5 rounded-3xl text-sm md:text-base leading-relaxed shadow-xl
+                    ${msg.role === 'user' 
+                      ? 'bg-blue-600 text-white font-medium rounded-br-sm border border-blue-500' 
+                      : 'bg-[#1e293b]/90 backdrop-blur-md text-white/90 border border-white/10 rounded-bl-sm'}
+                  `}>
+                    {/* Render Loading Dots INSIDE the empty bubble! */}
+                    {isStreamingPlaceholder ? (
+                      <div className="flex gap-1.5 items-center h-6 px-2">
+                        <motion.div className="w-2 h-2 bg-blue-400 rounded-full" animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} />
+                        <motion.div className="w-2 h-2 bg-blue-400 rounded-full" animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} />
+                        <motion.div className="w-2 h-2 bg-blue-400 rounded-full" animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} />
+                      </div>
+                    ) : msg.role === 'assistant' ? (
+                      <ReactMarkdown className="prose prose-invert prose-p:mb-2 prose-strong:text-blue-300 max-w-none">
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          <div ref={messagesEndRef} className="h-4" />
         </div>
 
-        <form onSubmit={handleSend} className="p-4 bg-black/40 border-t border-white/10">
-          <div className="relative flex items-center">
+        {/* Input Area (Pinned to bottom) */}
+        <div className="shrink-0 p-4 md:p-6 bg-[#070b14] border-t border-white/5">
+          <form onSubmit={handleSend} className="relative max-w-4xl mx-auto flex items-center">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              disabled={isTyping || step >= 5}
-              placeholder={step >= 5 ? "Onboarding complete..." : "Type your answer..."}
-              className="w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-12 py-4 text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-colors"
+              disabled={isTyping || isLocking}
+              placeholder="Chat with your tutor..."
+              className="w-full bg-[#1e293b]/90 backdrop-blur-xl border border-white/10 rounded-[2rem] pl-6 pr-14 py-4 text-base text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition-colors shadow-2xl"
             />
-            <button type="submit" disabled={!input.trim() || isTyping || step >= 5} className="absolute right-2 p-2 bg-white text-[#0f172a] rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors">
-              <Send size={20} />
+            <button type="submit" disabled={!input.trim() || isTyping || isLocking} className="absolute right-2.5 p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-500 disabled:bg-white/10 disabled:text-white/30 transition-all">
+              <Send size={20} className={input.trim() && !isTyping ? 'translate-x-0.5 -translate-y-0.5 transition-transform' : ''} />
             </button>
-          </div>
-        </form>
-      </motion.div>
+          </form>
+        </div>
+
+      </div>
     </div>
   );
 }

@@ -44,7 +44,7 @@ export const generateAIResponse = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct:free', 
+        model: 'openai/gpt-oss-20b', 
         messages: messages,
         temperature: 0.7,
         stream: true, // CRITICAL: Tells OpenRouter to stream tokens

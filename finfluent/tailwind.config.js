@@ -5,6 +5,10 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    // 🛑 MOVED OUTSIDE EXTEND: This completely overwrites Tailwind's default fonts
+    fontFamily: {
+      sans: ['Nunito', 'sans-serif'],
+    },
     extend: {
       colors: {
         background: "hsl(var(--background) / <alpha-value>)",

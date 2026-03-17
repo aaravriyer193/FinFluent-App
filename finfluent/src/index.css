@@ -1,68 +1,20 @@
-/* Import Nunito from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    /* LIGHT MODE: Navy and White */
-    --background: 0 0% 100%; /* White */
-    --foreground: 222.2 84% 4.9%; /* Very Dark Navy for text */
-    --primary: 221 39% 11%; /* Navy */
-    
-    /* Light Mode Glassmorphism */
-    --glass-bg: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(255, 255, 255, 0.3);
-  }
-
-  .dark {
-    /* DARK MODE: Dark Navy Grey and White */
-    --background: 222.2 47.4% 11.2%; /* Dark Navy Grey (#0f172a) */
-    --foreground: 210 40% 98%; /* White text */
-    --primary: 210 40% 98%; /* White primary accents */
-    
-    /* Dark Mode Glassmorphism */
-    --glass-bg: rgba(15, 23, 42, 0.75);
-    --glass-border: rgba(255, 255, 255, 0.1);
-  }
+/* THE BRUTE-FORCE OVERRIDE */
+:root, html, body {
+  font-family: 'Nunito', sans-serif !important;
+  background-color: #070b14;
+  color: white;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer base {
-  body {
-    @apply bg-background text-foreground;
-    font-family: 'Nunito', sans-serif;
-    /* Smooth transition when users toggle light/dark mode */
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
-}
-
-@layer utilities {
-  /* The Glassy UI effect requested on the whiteboard for Navbars/Sidebar */
-  .glass-panel {
-    @apply backdrop-blur-md shadow-lg border;
-    background-color: var(--glass-bg);
-    border-color: var(--glass-border);
-  }
-  
-  /* Subtle entry animations for your pages */
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-  
-  .animate-slide-up {
-    animation: slideUp 0.4s ease-out forwards;
-  }
-}
-
-/* Keyframes for the entry animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Force it on all interactive elements too */
+input, button, textarea, select {
+  font-family: 'Nunito', sans-serif !important;
 }
