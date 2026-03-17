@@ -49,7 +49,7 @@ export default function AppShell() {
         {/* Swapped to Logo.png */}
         <div className="flex items-center gap-3 mb-10">
           <img src={logo} alt="Finfluent" className="w-10 h-10 object-contain drop-shadow-lg" />
-          <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">Finfluent</h1>
+          <h1 className="text-2xl font-black tracking-tight text-white">Finfluent</h1>
         </div>
 
         {/* Wealth Display */}

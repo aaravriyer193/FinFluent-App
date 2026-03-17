@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Lock, Check, MapPin, 
+  Lock, Check, MapPin, Loader2,
   Book, Wallet, PiggyBank, TrendingUp, Landmark, 
   LineChart, Coins, CreditCard, Gem, ShieldCheck, 
   Briefcase, BarChart, PieChart, Target, Rocket, Crown 
@@ -41,13 +41,36 @@ const MODULE_CONFIG = [
 export default function Lessons() {
   const { user } = useAppContext();
   const navigate = useNavigate();
+  
   const [progress, setProgress] = useState<UserProgress[]>([]);
+  const [modules, setModules] = useState<{id: number, title: string, description: string}[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // THE FIX: Screen size detection for responsive Roadmap rendering
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      supabase.from('user_progress').select('*').eq('user_id', user.id)
-        .then(({ data }) => { if (data) setProgress(data); });
-    }
+    if (!user) return;
+    const fetchRoadmapData = async () => {
+      try {
+        const [progressRes, modulesRes] = await Promise.all([
+          supabase.from('user_progress').select('*').eq('user_id', user.id),
+          supabase.from('modules').select('*').order('id', { ascending: true })
+        ]);
+        if (progressRes.data) setProgress(progressRes.data);
+        if (modulesRes.data) setModules(modulesRes.data);
+      } catch (error) {
+        console.error("Error fetching roadmap data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRoadmapData();
   }, [user]);
 
   const checkStatus = (modNum: number) => {
@@ -65,123 +88,111 @@ export default function Lessons() {
     transition: { duration: 6 + delay, repeat: Infinity, ease: "easeInOut", delay }
   });
 
+  if (isLoading) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center text-white/50">
+        <Loader2 className="animate-spin text-blue-500 w-12 h-12 mb-4" />
+        <span className="font-bold tracking-widest uppercase">Loading Curriculum...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-full flex flex-col items-center py-6 text-white animate-fade-in w-full relative">
+    <div className="min-h-full flex flex-col items-center py-6 text-white animate-fade-in w-full relative overflow-x-hidden">
       
-      {/* 🚀 FOREGROUND HERO CARD */}
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex flex-col md:flex-row items-center justify-center gap-8 mb-20 z-20 w-full max-w-3xl bg-[#1e293b]/80 p-10 rounded-[40px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
-      >
+      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col md:flex-row items-center justify-center gap-8 mb-16 md:mb-20 z-20 w-full max-w-3xl bg-[#1e293b]/80 p-8 md:p-10 rounded-[40px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
         <div className="flex-1 text-center md:text-left">
-          <h1 className="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
+          <h1 className="text-4xl md:text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
             The Roadmap
           </h1>
-          <p className="text-white/70 font-medium leading-relaxed text-lg">
+          <p className="text-white/70 font-medium leading-relaxed text-base md:text-lg">
             Follow the path to financial mastery. Complete a module to unlock the next one and earn your FinCoins.
           </p>
         </div>
       </motion.div>
 
-      {/* 🗺️ THE WINDING 3D PATH */}
       <div className="relative flex flex-col items-center w-full max-w-md z-10 pb-40">
         {MODULE_CONFIG.map((config, i) => {
           const modNum = i + 1;
           const status = checkStatus(modNum);
+          const modData = modules.find(m => m.id === modNum);
           
           const isLeft = i % 2 === 0;
-          const currentX = isLeft ? -90 : 90; 
+          
+          // THE FIX: Narrower zig-zag on mobile so text fits!
+          const currentX = isMobile ? (isLeft ? -40 : 40) : (isLeft ? -90 : 90); 
+          const svgW = isMobile ? 80 : 180;
+          const svgPath = isLeft ? `M 0,0 C 0,96 ${svgW},96 ${svgW},192` : `M ${svgW},0 C ${svgW},96 0,96 0,192`;
+          
           const Icon = config.icon;
 
           return (
             <div key={modNum} className="relative h-48 w-full flex justify-center items-center">
               
-              {/* 🛣️ SVG WINDING ROAD */}
+              {/* 🛣️ Dynamic SVG WINDING ROAD */}
               {modNum !== MODULE_CONFIG.length && (
-                <svg className="absolute top-1/2 left-1/2 -translate-x-1/2 w-[180px] h-[192px] -z-10" style={{ overflow: 'visible' }}>
-                  <path
-                    d={isLeft ? "M 0,0 C 0,96 180,96 180,192" : "M 180,0 C 180,96 0,96 0,192"}
-                    fill="none"
-                    stroke={status === 'completed' ? "#ca8a04" : "#1e293b"}
-                    strokeWidth="28"
-                    strokeLinecap="round"
-                    className="drop-shadow-2xl"
-                  />
-                  <path
-                    d={isLeft ? "M 0,0 C 0,96 180,96 180,192" : "M 180,0 C 180,96 0,96 0,192"}
-                    fill="none"
-                    stroke={status === 'completed' ? "#fde047" : "#334155"} 
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                  />
+                <svg className={`absolute top-1/2 left-1/2 -translate-x-1/2 h-[192px] -z-10 ${isMobile ? 'w-[80px]' : 'w-[180px]'}`} style={{ overflow: 'visible' }}>
+                  <path d={svgPath} fill="none" stroke={status === 'completed' ? "#ca8a04" : "#1e293b"} strokeWidth={isMobile ? "20" : "28"} strokeLinecap="round" className="drop-shadow-2xl" />
+                  <path d={svgPath} fill="none" stroke={status === 'completed' ? "#fde047" : "#334155"} strokeWidth={isMobile ? "8" : "12"} strokeLinecap="round" />
                 </svg>
               )}
 
-              {/* 🌲 MASSIVE ANIMATED SCENERY VECTORS */}
-              {modNum === 2 && <motion.img animate={floatAnimation(0)} src={random1} alt="Scenery" className="absolute left-[-100px] md:left-[-240px] w-56 h-56 object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-0 pointer-events-none" />}
-              {modNum === 5 && <motion.img animate={floatAnimation(1)} src={random2} alt="Scenery" className="absolute right-[-100px] md:right-[-260px] w-64 h-64 object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-0 pointer-events-none" />}
-              {modNum === 8 && <motion.img animate={floatAnimation(2)} src={random3} alt="Scenery" className="absolute left-[-120px] md:left-[-280px] w-72 h-72 object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-0 pointer-events-none" />}
-              {modNum === 11 && <motion.img animate={floatAnimation(0.5)} src={random5} alt="Scenery" className="absolute right-[-90px] md:right-[-240px] w-56 h-56 object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-0 pointer-events-none" />}
-              {modNum === 14 && <motion.img animate={floatAnimation(1.5)} src={random4} alt="Scenery" className="absolute left-[-90px] md:left-[-220px] w-52 h-52 object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-0 pointer-events-none" />}
+              {/* 🌲 SCENERY VECTORS (Hidden or shrunk on mobile to reduce clutter) */}
+              {modNum === 2 && <motion.img animate={floatAnimation(0)} src={random1} alt="Scenery" className="hidden md:block absolute left-[-240px] w-56 h-56 object-contain drop-shadow-2xl z-0 pointer-events-none" />}
+              {modNum === 5 && <motion.img animate={floatAnimation(1)} src={random2} alt="Scenery" className="hidden md:block absolute right-[-260px] w-64 h-64 object-contain drop-shadow-2xl z-0 pointer-events-none" />}
+              {modNum === 8 && <motion.img animate={floatAnimation(2)} src={random3} alt="Scenery" className="hidden md:block absolute left-[-280px] w-72 h-72 object-contain drop-shadow-2xl z-0 pointer-events-none" />}
 
-              {/* 🛑 THE FIX: FRAMER MOTION POSITIONING */}
-              {/* Giving Framer Motion native control over the X axis prevents CSS conflict bugs forever */}
               <motion.div style={{ x: currentX }} className="relative z-20">
                 
                 {/* 📍 YOU ARE HERE INDICATOR */}
                 {status === 'unlocked' && (
                   <motion.div 
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: [0, -12, 0], opacity: 1 }}
-                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                    className="absolute -top-16 left-1/2 -translate-x-1/2 flex flex-col items-center text-yellow-400 font-black drop-shadow-2xl z-30"
+                    initial={{ y: 10, opacity: 0 }} animate={{ y: [0, -12, 0], opacity: 1 }} transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                    className="absolute -top-14 md:-top-16 left-1/2 -translate-x-1/2 flex flex-col items-center text-yellow-400 font-black drop-shadow-2xl z-30"
                   >
-                    <span className="bg-white text-black px-4 py-1.5 rounded-full text-xs mb-1 tracking-widest shadow-xl">START</span>
-                    <MapPin size={28} fill="currentColor" className="text-white drop-shadow-md" />
+                    <span className="bg-white text-black px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs mb-1 tracking-widest shadow-xl">START</span>
+                    <MapPin size={isMobile ? 24 : 28} fill="currentColor" className="text-white drop-shadow-md" />
                   </motion.div>
                 )}
 
-                {/* 🔘 THE 3D ARCADE BUTTON */}
+                {/* 🔘 BUTTON (Shrunk on mobile) */}
                 <motion.button
                   whileHover={status !== 'locked' ? { scale: 1.08 } : {}}
                   whileTap={status !== 'locked' ? { scale: 0.95, y: 8, boxShadow: "0px 0px 0px rgba(0,0,0,0)" } : {}}
                   onClick={() => status !== 'locked' && navigate(`/module/${modNum}`)}
-                  className={`w-28 h-28 rounded-full flex items-center justify-center relative transition-colors duration-300 cursor-pointer
-                    ${status === 'completed' 
-                      ? `bg-yellow-400 text-yellow-900 border-[8px] border-yellow-200` 
-                      : status === 'unlocked'
-                      ? `${config.bg} text-white border-[8px]`
-                      : 'bg-[#1e293b] text-white/20 border-[8px] border-[#334155] cursor-not-allowed'
+                  className={`w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center relative transition-colors duration-300 cursor-pointer
+                    ${status === 'completed' ? `bg-yellow-400 text-yellow-900 border-[6px] md:border-[8px] border-yellow-200` 
+                      : status === 'unlocked' ? `${config.bg} text-white border-[6px] md:border-[8px]`
+                      : 'bg-[#1e293b] text-white/20 border-[6px] md:border-[8px] border-[#334155] cursor-not-allowed'
                     }
                   `}
                   style={{ 
                     borderColor: status === 'unlocked' ? config.border : undefined,
-                    boxShadow: status === 'completed' ? `0px 8px 0px #a16207` : 
-                               status === 'unlocked' ? `0px 8px 0px ${config.shadow}` : 
-                               `0px 8px 0px #0f172a`
+                    boxShadow: status === 'completed' ? `0px 8px 0px #a16207` : status === 'unlocked' ? `0px 8px 0px ${config.shadow}` : `0px 8px 0px #0f172a`
                   }}
                 >
                   <div className="drop-shadow-lg">
-                    {status === 'completed' ? <Check size={48} strokeWidth={4} /> : 
-                     status === 'locked' ? <Lock size={36} /> : 
-                     <Icon size={48} strokeWidth={2.5} />}
+                    {status === 'completed' ? <Check size={isMobile ? 32 : 48} strokeWidth={4} /> : 
+                     status === 'locked' ? <Lock size={isMobile ? 24 : 36} /> : 
+                     <Icon size={isMobile ? 32 : 48} strokeWidth={2.5} />}
                   </div>
                    
-                  {/* Floating Module Label */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-left 
-                    ${isLeft ? 'left-[130px] right-auto' : 'right-[130px] text-right'}
+                  {/* THE FIX: Flexible wrapping container for the text */}
+                  <div className={`absolute top-1/2 -translate-y-1/2 flex flex-col pointer-events-none
+                    ${isLeft ? 'left-[90px] md:left-[130px] items-start text-left' : 'right-[90px] md:right-[130px] items-end text-right'}
+                    w-[130px] md:w-[240px]
                   `}>
-                    <div className={`font-black text-2xl ${status === 'locked' ? 'text-white/30' : 'text-white drop-shadow-xl'}`}>
+                    <div className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-1 ${status === 'locked' ? 'text-white/20' : 'text-blue-400/80 drop-shadow-md'}`}>
                       Module {modNum}
                     </div>
-                    {status === 'completed' && <div className="text-yellow-400 text-sm font-bold uppercase tracking-wider drop-shadow-md">Cleared</div>}
-                    {status === 'unlocked' && <div className="text-blue-300 text-sm font-bold uppercase tracking-wider drop-shadow-md">Next Lesson</div>}
+                    <div className={`font-black text-sm md:text-2xl leading-tight line-clamp-3 ${status === 'locked' ? 'text-white/30' : 'text-white drop-shadow-xl'}`}>
+                      {modData ? modData.title : 'Encrypted'}
+                    </div>
+                    {status === 'completed' && <div className="text-yellow-400 text-[10px] md:text-sm font-bold uppercase tracking-wider drop-shadow-md mt-1">Cleared</div>}
+                    {status === 'unlocked' && <div className="text-blue-300 text-[10px] md:text-sm font-bold uppercase tracking-wider drop-shadow-md mt-1">Next Lesson</div>}
                   </div>
                 </motion.button>
-
               </motion.div>
-
             </div>
           );
         })}
