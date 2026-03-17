@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finfluent | Financial Literacy Platform</title>
+    <style>
+      /* Pre-React styling to match your dark mode vibe by default */
+      body {
+        margin: 0;
+        background-color: #0f172a; /* Tailwind slate-900 (Dark Navy Grey) */
+        font-family: 'Nunito', sans-serif;
+      }
+      #initial-loader {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        color: white;
+      }
+      #initial-loader img {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+        margin-bottom: 20px;
+      }
+      .pulse-text {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .5; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="initial-loader">
+        <img src="/src/assets/mascot.gif" alt="Finfluent Mascot" />
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
