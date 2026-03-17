@@ -1,26 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { useAppContext } from '../context/AppContext';
 
-// VITE FIX: Explicitly import your assets so they never break!
+// VITE FIX: Explicitly import your assets
 import random1 from '../assets/random1.png';
 import mascot from '../assets/mascot.gif';
 import googleIcon from '../assets/google.svg';
-import linkedinIcon from '../assets/linkedin.svg';
-import facebookIcon from '../assets/facebook.svg';
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const { session, user } = useAppContext();
+  const navigate = useNavigate();
 
-  const handleOAuthLogin = async (provider: 'google' | 'linkedin_oidc' | 'facebook') => {
+  // 🚀 THE REDIRECT ENGINE
+  // This watches for the exact moment the session is confirmed and pushes the user forward
+  useEffect(() => {
+    if (session && user) {
+      if (user.has_completed_onboarding) {
+        navigate('/dashboard');
+      } else {
+        navigate('/onboarding');
+      }
+    }
+  }, [session, user, navigate]);
+
+  const handleOAuthLogin = async (provider: 'google') => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      // This dynamically grabs your active GitHub Codespace URL!
       const currentUrl = window.location.origin; 
-      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: `${currentUrl}/dashboard` }
+        options: { 
+          redirectTo: `${currentUrl}/dashboard` 
+        }
       });
       if (error) throw error;
     } catch (error) {
@@ -30,10 +45,9 @@ export default function Login() {
   };
 
   return (
-    // Forcing the Dark Navy Grey aesthetic from your whiteboard here
     <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-[#0f172a] text-white">
       
-      {/* Background ambient glows - Adjusted for Dark Mode */}
+      {/* Background ambient glows */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
 
@@ -81,7 +95,7 @@ export default function Login() {
             </motion.button>
           </div>
           
-          {isLoading && (
+          {(isLoading || (session && !user)) && (
             <div className="mt-6 flex justify-center text-white/50 text-sm animate-pulse flex-col items-center gap-2">
               <img src={mascot} alt="Loading" className="w-8 h-8" />
               Securing connection...

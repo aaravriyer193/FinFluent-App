@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, User, Award, BookOpen, LogOut } from 'lucide-react';
+import { Home, User, Award, BookOpen, LogOut, Activity } from 'lucide-react'; // Added Activity icon
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import AIChatBot from './AIChatBot';
@@ -24,6 +24,7 @@ export default function AppShell() {
   const navItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
     { to: '/modules', icon: BookOpen, label: 'Lessons' },
+    { to: '/stocks', icon: Activity, label: 'Market' }, // NEW: Added Stocks link
     { to: '/leaderboard', icon: Award, label: 'Leaderboard' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
@@ -35,9 +36,9 @@ export default function AppShell() {
 
   return (
     // STRICT FIX: h-[100dvh] fixes mobile scrolling forever
-    <div className="flex h-[100dvh] w-full bg-[#070b14] text-white overflow-hidden animate-fade-in relative">
+    <div className="flex h-[100dvh] w-full bg-[#070b14] text-white overflow-hidden animate-fade-in relative font-sans">
       
-      {/* 🌌 AMBIENT GLOWS (Added behind everything) */}
+      {/* 🌌 AMBIENT GLOWS */}
       <motion.div animate={{ rotate: 360, scale: [1, 1.1, 1] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
       <motion.div animate={{ rotate: -360, scale: [1, 1.2, 1] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
 
@@ -46,7 +47,6 @@ export default function AppShell() {
       {/* ========================================== */}
       <aside className="hidden md:flex flex-col w-64 bg-[#0f172a]/70 backdrop-blur-3xl border-r border-white/5 p-6 z-20 shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
         
-        {/* Swapped to Logo.png */}
         <div className="flex items-center gap-3 mb-10">
           <img src={logo} alt="Finfluent" className="w-10 h-10 object-contain drop-shadow-lg" />
           <h1 className="text-2xl font-black tracking-tight text-white">Finfluent</h1>
@@ -61,7 +61,7 @@ export default function AppShell() {
           <img src={fincoin} alt="FinCoins" className="w-10 h-10 object-contain z-10" />
         </div>
 
-        {/* Navigation Links (Using your exact working syntax) */}
+        {/* Navigation Links */}
         <nav className="flex flex-col gap-2 flex-1 relative z-10">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClasses}>
@@ -81,7 +81,7 @@ export default function AppShell() {
       </aside>
 
       {/* ========================================== */}
-      {/* MOBILE TOP BAR (New Feature) */}
+      {/* MOBILE TOP BAR */}
       {/* ========================================== */}
       <header className="md:hidden fixed top-0 left-0 w-full h-16 bg-[#0f172a]/90 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-4 z-40 shadow-lg">
         <div className="flex items-center gap-2">
@@ -102,7 +102,6 @@ export default function AppShell() {
       {/* ========================================== */}
       {/* MAIN CONTENT AREA */}
       {/* ========================================== */}
-      {/* pt-16 added here to push content below the new mobile header */}
       <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative pt-16 md:pt-0 pb-20 md:pb-0 z-10">
         <div className="p-4 md:p-8 max-w-6xl mx-auto h-full animate-slide-up">
           <Outlet />
@@ -119,7 +118,6 @@ export default function AppShell() {
             to={item.to} 
             className={({ isActive }) => `p-3 rounded-2xl transition-all ${isActive ? 'bg-blue-600/20 shadow-inner' : ''}`}
           >
-            {/* Using your exact working callback syntax for the icon */}
             {({ isActive }) => (
               <item.icon 
                 size={24} 

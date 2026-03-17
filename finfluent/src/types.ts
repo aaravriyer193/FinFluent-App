@@ -9,7 +9,7 @@ export type RewardType = 'Title' | 'AvatarFrame' | 'Badge';
 export interface Profile {
   id: string; // UUID matches Auth user
   full_name: string | null;
-  avatar_path: string | null; // Path to Supabase Storage bucket
+  avatar_url: string | null; // Path to Supabase Storage bucket
   spendable_fin_coins: number;
   lifetime_fin_coins: number; // For the Leaderboard
   current_title: string;

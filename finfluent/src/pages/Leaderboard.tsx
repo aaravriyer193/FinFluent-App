@@ -58,8 +58,8 @@ export default function Leaderboard() {
             </div>
             
             <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden border-2 border-white/10 flex-shrink-0">
-              {leader.avatar_path ? (
-                <img src={leader.avatar_path} alt="Avatar" className="w-full h-full object-cover" />
+              {leader.avatar_url ? (
+                <img src={leader.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white/30 font-bold">?</div>
               )}
