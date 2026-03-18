@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAppContext } from './context/AppContext';
 
 import AppShell from './components/AppShell';
+import Landing from './pages/Landing'; // NEW: Import the Landing page
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
@@ -11,7 +12,7 @@ import Profile from './pages/Profile';
 import Lessons from './pages/Lessons';
 import Leaderboard from './pages/Leaderboard';
 import Stocks from './pages/Stocks';
-import Streak from './pages/Streak'; // NEW: Import the Streak page
+import Streak from './pages/Streak'; 
 
 import mascot from './assets/mascot.gif';
 
@@ -39,7 +40,6 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   }
 
   // 3. THE FIX: If session exists but user profile isn't loaded yet, WAIT.
-  // This prevents the app from guessing where to send you before the DB is ready.
   if (!user) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#070b14] text-white">
@@ -63,7 +63,6 @@ const RequireOnboarding = ({ children }: { children: React.ReactNode }) => {
   if (loading) return null; 
   if (!session) return <Navigate to="/login" replace />;
   
-  // Wait for user profile before redirecting away from onboarding
   if (!user) return null; 
   if (user.has_completed_onboarding) return <Navigate to="/dashboard" replace />;
 
@@ -76,16 +75,24 @@ const RequireOnboarding = ({ children }: { children: React.ReactNode }) => {
 export default function App() {
   const { session, loading, user } = useAppContext();
 
-  // Global loading to prevent "Login Screen Flash"
   if (loading && !session) {
     return null; 
   }
 
   return (
     <Routes>
-      {/* Logic: If logged in AND profile exists AND onboarding is done, 
-         don't even let them see the login page.
-      */}
+      {/* 🚀 THE FRONT DOOR */}
+      <Route 
+        path="/" 
+        element={
+          (session && user?.has_completed_onboarding)
+            ? <Navigate to="/dashboard" replace /> 
+            : (session && !user?.has_completed_onboarding)
+              ? <Navigate to="/onboarding" replace />
+              : <Landing />
+        } 
+      />
+
       <Route 
         path="/login" 
         element={
@@ -97,17 +104,18 @@ export default function App() {
       
       <Route path="/onboarding" element={<RequireOnboarding><Onboarding /></RequireOnboarding>} />
 
+      {/* 🛡️ THE VAULT (Protected Routes) */}
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/module/:moduleId" element={<Module />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/modules" element={<Lessons />} />
         <Route path="/stocks" element={<Stocks />} />
-        <Route path="/streak" element={<Streak />} /> {/* NEW: Added Streak route */}
+        <Route path="/streak" element={<Streak />} /> 
         <Route path="/leaderboard" element={<Leaderboard />} />
       </Route>
 
+      {/* Catch-all throws them back to the root, which handles logic automatically */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
