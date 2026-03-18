@@ -20,14 +20,14 @@ export default function AIChatBot() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: `Hey **${user?.full_name?.split(' ')[0] || 'there'}**! I'm your Finfluent Tutor. 🤖\n\nI can help you with up to 250 queries per month. How can I help you scale today?` 
+      content: `Hey **${user?.full_name?.split(' ')[0] || 'there'}**! I'm your Finfluent Tutor. 🤖\n\nI can help you with up to 100 queries per month. How can I help you scale today?` 
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 🛡️ LIMIT CHECK (250 responses)
-  const monthlyLimit = 250;
+  // 🛡️ LIMIT CHECK (100 responses)
+  const monthlyLimit =100;
   const currentUsage = user?.ai_message_count || 0;
   const isLimitReached = currentUsage >= monthlyLimit;
 
@@ -146,7 +146,7 @@ export default function AIChatBot() {
               {isLimitReached ? (
                 <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-2xl flex items-center gap-3 text-red-400 text-xs font-bold">
                   <AlertCircle size={18} />
-                  <span>Monthly response limit reached (250/250).</span>
+                  <span>Monthly response limit reached (100/100).</span>
                 </div>
               ) : (
                 <div className="relative flex items-center group">

@@ -17,7 +17,7 @@ export default function Onboarding() {
   
   const [input, setInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'assistant' | 'user', content: string}[]>([
-    { role: 'assistant', content: `Hey ${user?.full_name?.split(' ')[0] || 'there'}! I'm your Finfluent Tutor. 🚀\n\nI'm here to help you secure that bag. Tell me a bit about your financial goals, or if you're ready to jump straight into the action, just hit **Enter Finfluent**!` }
+    { role: 'assistant', content: `Hey ${user?.full_name?.split(' ')[0] || 'there'}! I'm your Finfluent Tutor. 🚀\n\nI'm here to help you secure that bag. Tell me a bit about your financial goals, or if you're ready to jump straight into the action, just hit **Enter Platform**!` }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
@@ -54,27 +54,90 @@ export default function Onboarding() {
     setIsTyping(false);
   };
 
+  // 🔥 THE NEW EXTRACTION & NOTIFICATION LOGIC 🔥
   const completeOnboarding = async () => {
     if (!user) return;
     setIsLocking(true);
+    
     try {
-      const aiContext = { baseline: chatHistory.map(m => m.content).join(" | ") };
+      let finalSummary = 'User skipped onboarding chat. Goals unknown. General financial literacy path recommended.';
+      let parsedNotifications = [];
+
+      if (chatHistory.length > 1) {
+        const fullConversation = chatHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
+        
+        // --- API CALL 1: Extract Context ---
+        const extractionPrompt = `
+          You are an expert data extractor for a financial app. Analyze the following onboarding conversation and extract ONLY the user's specific financial goals, their current experience level, and motivations.
+          Format the output as a clean, concise bulleted list of facts. Do not include conversational filler.
+          
+          CONVERSATION LOG:
+          ${fullConversation}
+        `;
+
+        let extractedSummary = "";
+        await generateAIResponse(extractionPrompt, null, [], (chunk) => { extractedSummary = chunk; });
+        
+        if (extractedSummary && extractedSummary.trim() !== "") {
+          finalSummary = extractedSummary.trim();
+        }
+
+        // --- API CALL 2: Generate Custom JSON Notifications ---
+        const notificationPrompt = `
+          Based on the following user profile and goals, generate 10 highly engaging, personalized push notifications for our financial app called "Finfluent".
+          
+          Constraints:
+          1. Exactly 10 notifications.
+          2. Max 2 short lines each. Keep them punchy.
+          3. Create urgency, motivation, or curiosity directly related to their specific goals mentioned in the profile.
+          4. Output STRICTLY as a valid JSON array of objects. Do not use markdown blocks (\`\`\`). Do not include any text outside the JSON array.
+          
+          Format: [{"notification": "text here"}, {"notification": "text here"}]
+          
+          USER PROFILE:
+          ${finalSummary}
+        `;
+
+        let notificationsRaw = "";
+        await generateAIResponse(notificationPrompt, null, [], (chunk) => { notificationsRaw = chunk; });
+
+        // Safely parse the JSON (stripping out any markdown backticks the AI might accidentally add)
+        try {
+          const cleanedJson = notificationsRaw.replace(/```json/gi, '').replace(/```/g, '').trim();
+          parsedNotifications = JSON.parse(cleanedJson);
+        } catch (parseError) {
+          console.error("Failed to parse notifications JSON:", parseError);
+          // Fallback generic notifications if parsing fails
+          parsedNotifications = [
+            { notification: "Time to secure the bag! Open Finfluent and continue your journey. 🚀" },
+            { notification: "Your daily financial lesson is waiting. Don't lose your streak! 🔥" }
+          ];
+        }
+      } else {
+        // Fallback for users who skipped the chat entirely
+        parsedNotifications = [
+          { notification: "Ready to master your money? Jump into your first Finfluent module! 💸" },
+          { notification: "Consistency is key. Secure your daily FinCoins now! 🪙" }
+        ];
+      }
+
+      // --- SAVE TO SUPABASE ---
       await supabase.from('profiles').update({ 
         has_completed_onboarding: true, 
-        ai_context_summary: aiContext 
+        ai_context_summary: finalSummary,
+        notifications: parsedNotifications // Saves the JSON array directly to the jsonb column
       }).eq('id', user.id);
+
       await refreshUserData();
       navigate('/dashboard'); 
+
     } catch (error) {
-      console.error(error);
+      console.error("Error finalizing onboarding:", error);
       setIsLocking(false);
     }
   };
 
   return (
-    /* FIX 1: "fixed inset-0" nails the app to the screen edges.
-       FIX 2: "overscroll-none" stops the mobile "bounce" and infinite scroll feel.
-    */
     <div className="fixed inset-0 w-full flex flex-col md:flex-row bg-[#070b14] text-white overflow-hidden overscroll-none font-sans">
       
       <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
@@ -104,13 +167,13 @@ export default function Onboarding() {
           <button 
             onClick={completeOnboarding}
             disabled={isLocking}
-            className="flex items-center gap-2 bg-blue-600 px-5 py-2 rounded-full font-bold text-sm hover:bg-blue-500 transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+            className="flex items-center gap-2 bg-blue-600 px-5 py-2 rounded-full font-bold text-sm hover:bg-blue-500 transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] disabled:opacity-50"
           >
-            {isLocking ? <Loader2 className="animate-spin" size={18} /> : <><Rocket size={18} /> Enter Platform</>}
+            {isLocking ? <><Loader2 className="animate-spin" size={18} /> Processing...</> : <><Rocket size={18} /> Enter Platform</>}
           </button>
         </div>
 
-        {/* MIDDLE: flex-1 overflow-y-auto (THE ONLY PART THAT SCROLLS) */}
+        {/* MIDDLE: flex-1 overflow-y-auto */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 scroll-smooth min-h-0">
           <AnimatePresence initial={false}>
             {chatHistory.map((msg, i) => {
@@ -148,7 +211,7 @@ export default function Onboarding() {
           <div ref={messagesEndRef} className="h-4 shrink-0" />
         </div>
 
-        {/* BOTTOM BAR: shrink-0 (Stays pinned above keyboard) */}
+        {/* BOTTOM BAR: shrink-0 */}
         <div className="shrink-0 p-4 bg-[#070b14] border-t border-white/5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <form onSubmit={handleSend} className="relative max-w-4xl mx-auto flex items-center">
             <input
@@ -159,7 +222,7 @@ export default function Onboarding() {
               placeholder="Chat with your tutor..."
               className="w-full bg-[#1e293b]/90 backdrop-blur-xl border border-white/10 rounded-[2rem] pl-6 pr-14 py-4 text-base text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition-colors shadow-2xl"
             />
-            <button type="submit" disabled={!input.trim() || isTyping || isLocking} className="absolute right-2.5 p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-all">
+            <button type="submit" disabled={!input.trim() || isTyping || isLocking} className="absolute right-2.5 p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-all disabled:opacity-50">
               <Send size={20} className={input.trim() && !isTyping ? 'translate-x-0.5 -translate-y-0.5' : ''} />
             </button>
           </form>

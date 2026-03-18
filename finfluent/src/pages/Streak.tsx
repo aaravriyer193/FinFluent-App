@@ -11,7 +11,7 @@ import fincoinImg from '../assets/fincoin.gif';
 import streakGif from '../assets/Streak.gif';
 import random3 from '../assets/random3.png';
 import random5 from '../assets/random5.png';
-import logo from '../assets/logo.png'; // NEW: Using logo instead of mascot for the share card
+import logo from '../assets/logo.png'; 
 
 export default function Streak() {
   const { user, refreshUserData } = useAppContext();
@@ -27,6 +27,9 @@ export default function Streak() {
   
   const [displayStreak, setDisplayStreak] = useState<number>(0);
   const [showShareModal, setShowShareModal] = useState(false);
+  
+  // NEW: Track which days were frozen in the current week
+  const [frozenIndices, setFrozenIndices] = useState<number[]>([]);
 
   const FREEZE_COST = 50;
   const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -67,7 +70,7 @@ export default function Streak() {
     loadOrInitializeStreak();
   }, [user]);
 
-  // 3. STATUS EVALUATION
+  // 3. STATUS EVALUATION & LOCAL CACHE FOR FROZEN DAYS
   const evaluateStreakStatus = async (data: any) => {
     if (!data.last_check_in) {
       setStreakData(data);
@@ -84,6 +87,13 @@ export default function Streak() {
     const diffDays = Math.ceil(Math.abs(todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
     let updatedData = { ...data };
 
+    // Load frozen cache to remember blue dots across reloads
+    const storageKey = `finfluent_frozen_${user?.id}`;
+    let cachedFrozen: { date: string, idx: number }[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    // Prune days older than a week
+    const sevenDaysAgo = new Date(todayDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    cachedFrozen = cachedFrozen.filter(f => new Date(f.date) > sevenDaysAgo);
+
     if (diffDays === 0) {
       setStatus('checked-in');
       triggerNumberClimb(updatedData.current_streak);
@@ -96,16 +106,31 @@ export default function Streak() {
         updatedData.freezes_available -= missedDays;
         updatedData.last_check_in = new Date(now.getTime() - (24 * 60 * 60 * 1000)).toISOString();
         await supabase.from('user_streaks').update({ freezes_available: updatedData.freezes_available, last_check_in: updatedData.last_check_in }).eq('user_id', user?.id);
+        
+        // Register the newly frozen days!
+        for (let i = 1; i <= missedDays; i++) {
+            const d = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000);
+            if (!cachedFrozen.some(f => f.date === d.toISOString())) {
+                cachedFrozen.push({ date: d.toISOString(), idx: d.getDay() });
+            }
+        }
+        
         setStatus('frozen');
         triggerNumberClimb(updatedData.current_streak);
       } else {
         updatedData.current_streak = 0;
         updatedData.freezes_available = 0;
         await supabase.from('user_streaks').update({ current_streak: 0, freezes_available: 0 }).eq('user_id', user?.id);
+        
+        cachedFrozen = []; // Streak broken, wipe history
         setStatus('lost');
         setDisplayStreak(0);
       }
     }
+    
+    // Save to local storage and state
+    localStorage.setItem(storageKey, JSON.stringify(cachedFrozen));
+    setFrozenIndices(cachedFrozen.map(f => f.idx));
     setStreakData(updatedData);
   };
 
@@ -148,10 +173,9 @@ export default function Streak() {
     setIsSharing(true);
 
     try {
-      // Create the image from the DOM element
       const canvas = await html2canvas(shareCardRef.current, { 
         backgroundColor: null, 
-        scale: 2, // High resolution
+        scale: 2, 
         logging: false,
         useCORS: true 
       });
@@ -161,7 +185,6 @@ export default function Streak() {
         
         const file = new File([blob], 'finfluent-streak.png', { type: 'image/png' });
 
-        // Check if the device supports the native share sheet
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: 'My Finfluent Streak',
@@ -169,7 +192,6 @@ export default function Streak() {
             files: [file]
           });
         } else {
-          // Fallback: Download the image directly if they are on Desktop without native sharing
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -182,7 +204,7 @@ export default function Streak() {
       console.error("Error sharing:", error);
     } finally {
       setIsSharing(false);
-      setShowShareModal(false); // Close modal after sharing
+      setShowShareModal(false); 
     }
   };
 
@@ -241,7 +263,6 @@ export default function Streak() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            // FIX: Removed leading-none, added py-4 and overflow-visible so the shadow/text isn't cropped!
             className="text-8xl md:text-[120px] font-black tracking-tighter leading-tight py-4 overflow-visible text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 drop-shadow-2xl"
           >
             {displayStreak}
@@ -249,19 +270,32 @@ export default function Streak() {
           <p className="text-xl md:text-2xl font-black uppercase text-orange-400 tracking-wide mt-[-10px]">Day Streak</p>
         </div>
 
-        {/* The Week Tracker */}
+        {/* 🗓️ UPDATED WEEK TRACKER (STRICT FUTURE BLOCK & BLUE FROZEN SUPPORT) */}
         <div className="w-full max-w-sm mt-8 bg-[#0f172a]/60 backdrop-blur-xl p-6 rounded-[32px] border border-white/5 shadow-2xl">
           <div className="flex justify-between items-center mb-6 px-2">
             {WEEK_DAYS.map((day, idx) => {
-              const daysAgo = todayIndex >= idx ? todayIndex - idx : (7 + todayIndex) - idx;
-              const isLit = isCheckedIn ? streakData.current_streak > daysAgo : streakData.current_streak > (daysAgo - 1);
+              // Strict logic: Future days within the current week should NEVER light up.
+              const isFuture = idx > todayIndex;
+              const daysAgo = isFuture ? -1 : todayIndex - idx;
+              
+              // It is lit ONLY if it's not a future day AND the streak reaches back that far
+              const isLit = !isFuture && (isCheckedIn ? streakData.current_streak > daysAgo : streakData.current_streak > (daysAgo - 1));
               const isToday = idx === todayIndex;
+              
+              // Only apply blue frozen style if it's within the lit streak
+              const isFrozen = isLit && frozenIndices.includes(idx);
 
               return (
                 <div key={day} className="flex flex-col items-center gap-3">
                   <span className={`text-[11px] font-black uppercase tracking-wider ${isToday ? 'text-orange-400' : 'text-white/30'}`}>{day}</span>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${isLit ? 'bg-gradient-to-br from-orange-400 to-red-500 border-orange-300 text-white shadow-[0_0_15px_rgba(249,115,22,0.6)]' : 'bg-[#1e293b] border-white/5 text-transparent'}`}>
-                    {isLit && <Check size={16} strokeWidth={4} />}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                    isFrozen 
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-300 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                      : isLit 
+                        ? 'bg-gradient-to-br from-orange-400 to-red-500 border-orange-300 text-white shadow-[0_0_15px_rgba(249,115,22,0.6)]' 
+                        : 'bg-[#1e293b] border-white/5 text-transparent'
+                  }`}>
+                    {(isLit || isFrozen) && <Check size={16} strokeWidth={4} />}
                   </div>
                 </div>
               );
@@ -337,19 +371,14 @@ export default function Streak() {
             
             <div className="flex flex-col items-center gap-8 w-full">
               
-              {/* The "Social Card" - We attach the Ref here so html2canvas can target it */}
               <motion.div 
                 ref={shareCardRef}
                 initial={{ scale: 0.8, y: 50 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 50 }} transition={{ type: "spring", bounce: 0.5 }}
                 className="w-[320px] h-[320px] md:w-[400px] md:h-[400px] bg-gradient-to-br from-orange-400 to-orange-600 rounded-[40px] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden shadow-[0_20px_60px_rgba(249,115,22,0.4)] border-4 border-orange-300/30"
               >
-                {/* Background Decor */}
                 <div className="absolute top-[-20%] left-[-20%] w-[150%] h-[150%] bg-[radial-gradient(circle,rgba(255,255,255,0.2)_0%,transparent_60%)] pointer-events-none" />
-                
-                {/* Logo watermark instead of mascot */}
                 <img src={logo} className="absolute -right-8 -bottom-8 w-48 md:w-64 opacity-20 drop-shadow-2xl grayscale mix-blend-overlay pointer-events-none" alt="Logo" />
                 
-                {/* Card Content */}
                 <div className="relative z-10 text-white font-black flex flex-col items-start text-left">
                   <p className="text-xl md:text-2xl text-white/90 tracking-wide mb-[-10px]">I'm on a</p>
                   <div className="text-[100px] md:text-[140px] leading-tight py-2 overflow-visible text-white drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)] tracking-tighter">
@@ -358,14 +387,13 @@ export default function Streak() {
                   <p className="text-2xl md:text-3xl leading-tight mt-0 text-white/90">
                     day financial<br/>learning streak!
                   </p>
-                  
                   <div className="mt-8 flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full border border-white/20">
+                    <img src={logo} className="w-6 h-6 object-contain" />
                     <span className="text-sm tracking-widest uppercase">Finfluent</span>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Native OS Share Trigger */}
               <button 
                 onClick={handleNativeShare}
                 disabled={isSharing}

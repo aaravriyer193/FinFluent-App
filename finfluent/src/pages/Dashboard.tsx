@@ -86,12 +86,9 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1e293b]/80 backdrop-blur-3xl rounded-[40px] p-8 md:p-12 relative overflow-hidden border border-white/10 shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 via-transparent pointer-events-none" />
           <div className="relative z-10 md:w-2/3">
-            <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter leading-tight">
-              Ready to earn,<br/><span className="text-blue-400">{user?.full_name?.split(' ')[0] || 'Investor'}?</span>
-            </h1>
-            <div className="flex items-center gap-2 mb-8 bg-black/40 w-fit px-5 py-2 rounded-full border border-white/10 text-sm font-bold uppercase tracking-wider">
-              <Sparkles className="text-yellow-400" size={16} /> Rank: <span className="text-white ml-2">{user?.current_title}</span>
-            </div>
+            <h2 className="text-2xl md:text-5xl font-black mb-4 tracking-tighter leading-tight color-gradient bg-gradient-to-r from-blue-200 to-blue-500 bg-clip-text text-transparent">
+              Ready to earn,<br/><span className="text-pink-400">{user?.full_name?.split(' ')[0] || 'Investor'}?</span>
+            </h2>
             <button onClick={() => navigate('/modules')} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:bg-blue-500 transition-all shadow-lg border-b-4 border-blue-800 text-lg">
               <TrendingUp size={22} /> Enter Roadmap
             </button>

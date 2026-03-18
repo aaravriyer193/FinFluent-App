@@ -23,7 +23,7 @@ export const generateAIResponse = async (
   - Wealth (FinCoins): ${context?.spendableCoins || 0}
   - Title: ${context?.currentTitle || 'Financial Novice'}
   - Progress: ${context?.moduleProgress || 'Just starting out.'}
-  - AI Notes on User: ${JSON.stringify(context?.aiMemory || {})}
+  - AI Notes on User: ${JSON.stringify(context?.ai_context_summary|| {})}
   
   Do not break character. If they ask about things outside of finance or the app, gently redirect them.`;
 
@@ -44,7 +44,7 @@ export const generateAIResponse = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct', 
+        model: 'xiaomi/mimo-v2-flash', 
         messages: messages,
         temperature: 0.7,
         stream: true, // CRITICAL: Tells OpenRouter to stream tokens
