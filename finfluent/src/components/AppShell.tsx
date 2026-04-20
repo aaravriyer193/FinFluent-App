@@ -34,7 +34,6 @@ export default function AppShell() {
   const navItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
     { to: '/modules', icon: BookOpen, label: 'Lessons' },
-    { to: '/stocks', icon: Activity, label: 'Market' },
     { to: '/streak', icon: StreakIcon, label: 'Streak' }, // Replaced Flame with StreakIcon
     { to: '/leaderboard', icon: Award, label: 'Leaderboard' },
     { to: '/profile', icon: User, label: 'Profile' },

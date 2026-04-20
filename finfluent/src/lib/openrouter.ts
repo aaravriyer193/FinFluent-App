@@ -44,7 +44,7 @@ export const generateAIResponse = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'xiaomi/mimo-v2-flash', 
+        model: 'qwen/qwen3-30b-a3b-instruct-2507', 
         messages: messages,
         temperature: 0.7,
         stream: true, // CRITICAL: Tells OpenRouter to stream tokens

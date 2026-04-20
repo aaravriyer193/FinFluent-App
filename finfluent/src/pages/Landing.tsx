@@ -20,10 +20,7 @@ import random5 from '../assets/random5.png';
 // Audio
 import yayAudio from '../assets/yay.mp3';
 
-const LANGUAGES = [
-  'English', 'Español', 'Français', 'Deutsch', 'Italiano',
-  'Português', '日本語', '한국어', '中文', 'العربية'
-];
+
 
 // Data for charts
 const knowledgeGrowthData = [
@@ -305,7 +302,7 @@ export default function Landing() {
               onClick={() => setIsLangOpen(!isLangOpen)}
               className="flex items-center gap-2 text-white/60 hover:text-white font-black tracking-wide transition-colors uppercase text-sm bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl"
             >
-              <Globe size={18} /> {selectedLang} <ChevronDown size={16} className={`transition-transform duration-300 ${isLangOpen ? 'rotate-180' : ''}`} />
+              
             </button>
 
             <AnimatePresence>

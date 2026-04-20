@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, ArrowRight, Activity, Award, Loader2, CheckCircle2, Book } from 'lucide-react';
+import { PlayCircle, ArrowRight, Activity, Award, Loader2, CheckCircle2, Book, TestTube } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAppContext } from '../context/AppContext';
 
@@ -15,6 +15,7 @@ import fincoin from '../assets/fincoin.gif';
 // Audio imports
 import yayAudio from '../assets/yay.mp3';
 import noAudio from '../assets/no.mp3';
+import fanfareAudio from '../assets/fanfare.mp3'; // NEW: Added Fanfare
 
 interface ModuleContent {
   step_index: number;
@@ -26,30 +27,14 @@ interface ModuleContent {
   correct_option: string;
 }
 
-// 🎆 PHYSICS-BASED FIREWORKS GENERATOR
-const generateFireworks = () => {
-  return Array.from({ length: 120 }).map((_, i) => {
-    const angle = Math.random() * Math.PI * 2;
-    // Explosive velocity outwards
-    const velocity = 200 + Math.random() * 800; 
-    return {
-      id: i,
-      x: Math.cos(angle) * velocity,
-      // Y goes UP initially, but we will add gravity in the animation
-      y: Math.sin(angle) * velocity, 
-      color: ['#fbbf24', '#f87171', '#34d399', '#60a5fa', '#a78bfa', '#ffffff'][Math.floor(Math.random() * 6)],
-      size: Math.random() * 10 + 5,
-      delay: Math.random() * 0.3 
-    };
-  });
-};
-
 export default function Module() {
   const { moduleId } = useParams();
   const { user, refreshUserData } = useAppContext();
   const navigate = useNavigate();
 
   const [content, setContent] = useState<ModuleContent[]>([]);
+  const [simulationHtml, setSimulationHtml] = useState<string | null>(null);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [isModuleLoading, setIsModuleLoading] = useState(true);
   const [showReward, setShowReward] = useState(false);
@@ -59,8 +44,9 @@ export default function Module() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
   const [earnedCoins, setEarnedCoins] = useState<number>(0);
-  const [dopamineCoins, setDopamineCoins] = useState<{id: number, startX: number, endX: number, endY: number}[]>([]);
-  const [fireworks, setFireworks] = useState<any[]>([]);
+  const [totalModuleCoins, setTotalModuleCoins] = useState<number>(100);
+  // Added duration to the coin state to allow for organic, random speeds
+  const [dopamineCoins, setDopamineCoins] = useState<{id: number, startX: number, endX: number, endY: number, duration: number}[]>([]);
 
   useEffect(() => {
     const fetchContentAndProgress = async () => {
@@ -72,6 +58,15 @@ export default function Module() {
           .order('step_index', { ascending: true });
         
         if (contentData) setContent(contentData);
+
+        const { data: moduleInfo } = await supabase.from('modules')
+          .select('simulation_html')
+          .eq('id', parseInt(moduleId))
+          .single();
+          
+        if (moduleInfo?.simulation_html) {
+          setSimulationHtml(moduleInfo.simulation_html);
+        }
 
         const { data: progressData } = await supabase.from('user_progress')
           .select('current_step, status')
@@ -91,6 +86,27 @@ export default function Module() {
     fetchContentAndProgress();
   }, [moduleId, user]);
 
+  // 🔥 THE IFRAME LISTENER FIX 🔥
+  const handleCompleteRef = useRef<any>(null);
+
+  useEffect(() => {
+    handleCompleteRef.current = handleCompleteModule;
+  }); 
+
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'FINFLUENT_SIM_COMPLETE') {
+        const simCoins = event.data.coins || 0;
+        if (handleCompleteRef.current) {
+          await handleCompleteRef.current(simCoins);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []); 
+
   const activeStepData = content.find(c => c.step_index === currentStep);
 
   const handleAnswer = (option: string) => {
@@ -107,26 +123,31 @@ export default function Module() {
 
       const randomAmount = Math.floor(Math.random() * 11) + 10;
       setEarnedCoins(randomAmount);
+      setTotalModuleCoins(prev => prev + randomAmount);
 
-      // 🪙 PHYSICS-BASED COIN FOUNTAIN
+      // 🪙 ORGANIC PHYSICS-BASED COIN FOUNTAIN
       const burstCoins = Array.from({ length: 20 }).map((_, i) => {
-        // Shoot out in a cone shape (mostly up and out)
         const angle = (Math.random() - 0.5) * Math.PI * 0.8; 
-        const velocity = 400 + Math.random() * 400;
+        // Randomize the power of the shot
+        const velocity = 300 + Math.random() * 600; 
+        // Randomize how long it takes to fall (creates separation)
+        const duration = 1.5 + Math.random() * 1.5; 
+        
         return {
           id: Date.now() + i,
           startX: 0,
           endX: Math.sin(angle) * velocity,
-          // Negative is UP. We shoot them up far, then gravity pulls them down later in the animation.
-          endY: -Math.cos(angle) * velocity
+          endY: -Math.cos(angle) * velocity,
+          duration: duration
         };
       });
       setDopamineCoins(burstCoins);
       
+      // Clear coins after the longest possible duration (3 seconds)
       setTimeout(() => {
         setEarnedCoins(0);
         setDopamineCoins([]);
-      }, 2500); // Extended slightly to let gravity finish its work
+      }, 3000); 
       
     } else {
       const audio = new Audio(noAudio);
@@ -187,8 +208,14 @@ export default function Module() {
           user_id: user.id, module_id: parseInt(moduleId), current_step: nextStep, status: 'in_progress'
         }, { onConflict: 'user_id, module_id' });
 
+      } else if (nextStep === content.length && simulationHtml) {
+        setCurrentStep(nextStep);
+        await supabase.from('user_progress').upsert({
+          user_id: user.id, module_id: parseInt(moduleId), current_step: nextStep, status: 'in_progress'
+        }, { onConflict: 'user_id, module_id' });
+
       } else {
-        await handleCompleteModule();
+        await handleCompleteModule(0);
       }
     } catch (e) {
       console.error("Error saving step progress:", e);
@@ -197,11 +224,19 @@ export default function Module() {
     }
   };
 
-  const handleCompleteModule = async () => {
-    if (!user || !moduleId) return;
+  const handleCompleteModule = async (simCoinsEarned: number) => {
+    if (!user || !moduleId || isSaving) return;
+    setIsSaving(true);
     
-    setFireworks(generateFireworks());
+    const finalPayout = 100 + simCoinsEarned;
+    setTotalModuleCoins(prev => prev + simCoinsEarned); 
+    
     setShowReward(true);
+
+    // 🎺 Play the triumphant fanfare
+    const audio = new Audio(fanfareAudio);
+    audio.volume = 0.6;
+    audio.play().catch(e => console.log("Audio error:", e));
     
     try {
       await recordDailyStreak();
@@ -217,7 +252,8 @@ export default function Module() {
       }
 
       await supabase.from('profiles').update({
-        spendable_fin_coins: user.spendable_fin_coins + 100, lifetime_fin_coins: user.lifetime_fin_coins + 100
+        spendable_fin_coins: user.spendable_fin_coins + finalPayout, 
+        lifetime_fin_coins: user.lifetime_fin_coins + finalPayout
       }).eq('id', user.id);
 
       await refreshUserData();
@@ -225,6 +261,8 @@ export default function Module() {
       setTimeout(() => navigate('/modules'), 4500); 
     } catch (e) { 
       console.error(e); 
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -235,10 +273,12 @@ export default function Module() {
     </div>
   );
 
+  const totalSteps = simulationHtml ? content.length + 1 : content.length;
+
   return (
     <div className="h-full flex flex-col max-w-5xl mx-auto relative animate-fade-in text-white pt-4 pb-10">
       
-      {/* 💥 PHYSICS-BASED COIN FOUNTAIN 💥 */}
+      {/* 💥 ORGANIC PHYSICS-BASED COIN FOUNTAIN 💥 */}
       <AnimatePresence>
         {isCorrect && earnedCoins > 0 && (
           <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center overflow-hidden">
@@ -250,13 +290,11 @@ export default function Module() {
                 animate={{ 
                   scale: [0, 1.5, 0.8], 
                   x: coin.endX, 
-                  // The Magic: Shoot up (endY), stall slightly, then drop all the way down the screen (+1000)
                   y: [0, coin.endY, coin.endY + 1000], 
                   opacity: [1, 1, 0] 
                 }}
                 transition={{ 
-                  duration: 2.2, 
-                  // This easing mimics gravity. It slows down at the top, then accelerates downward
+                  duration: coin.duration, // Each coin follows its own random timeline
                   ease: ["easeOut", "easeIn"], 
                   times: [0, 0.4, 1] 
                 }}
@@ -288,18 +326,20 @@ export default function Module() {
         </h1>
         <div className="flex justify-between items-center mb-4 relative px-2">
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-white/5 rounded-full -z-10" />
-          <motion.div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-blue-500 rounded-full -z-10 shadow-[0_0_10px_rgba(37,99,235,0.8)]" initial={{ width: 0 }} animate={{ width: `${(currentStep / (content.length - 1 || 1)) * 100}%` }} />
+          <motion.div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-blue-500 rounded-full -z-10 shadow-[0_0_10px_rgba(37,99,235,0.8)]" initial={{ width: 0 }} animate={{ width: `${(currentStep / (totalSteps - 1 || 1)) * 100}%` }} />
           
-          {content.map((s, index) => {
-            const isCompleted = s.step_index < currentStep;
-            const isCurrent = s.step_index === currentStep;
-            const isFinalStep = index === content.length - 1;
+          {Array.from({ length: totalSteps }).map((_, index) => {
+            const isCompleted = index < currentStep;
+            const isCurrent = index === currentStep;
+            const isSimulationStep = simulationHtml && index === content.length;
+            const isFinalStep = index === totalSteps - 1;
 
             return (
-              <div key={s.step_index} className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-all duration-500 shadow-xl ${
+              <div key={index} className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-all duration-500 shadow-xl ${
                 isCompleted ? 'bg-blue-500 text-white' : isCurrent ? 'bg-[#0f172a] border-4 border-blue-500 text-blue-400 scale-110' : 'bg-[#0f172a] border-2 border-white/10 text-white/30'
               }`}>
-                {isCompleted ? <CheckCircle2 size={20} /> : (isFinalStep ? <Award size={20} className={isCurrent ? "text-blue-400" : "text-white/30"} /> : s.step_index + 1)}
+                {/* 🧪 Updated Code2 icon to TestTube for simulations! */}
+                {isCompleted ? <CheckCircle2 size={20} /> : (isSimulationStep ? <TestTube size={18} className={isCurrent ? "text-blue-400" : "text-white/30"} /> : isFinalStep ? <Award size={20} className={isCurrent ? "text-blue-400" : "text-white/30"} /> : index + 1)}
               </div>
             );
           })}
@@ -307,8 +347,9 @@ export default function Module() {
       </div>
 
       <AnimatePresence mode="wait">
-        {currentStep < content.length && activeStepData && (
-          <motion.div key={currentStep} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex-1 flex flex-col z-10 px-2">
+        {/* 🎬 STATE 1: VIDEO AND QUIZ */}
+        {currentStep < content.length && activeStepData ? (
+          <motion.div key={`step-${currentStep}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex-1 flex flex-col z-10 px-2">
             <div className="flex flex-col lg:flex-row gap-8 h-full">
               
               <div className="flex-1 flex flex-col bg-[#1e293b]/80 backdrop-blur-3xl rounded-[40px] p-6 border border-white/10 shadow-2xl">
@@ -356,77 +397,57 @@ export default function Module() {
                 </button>
               </div>
             </div>
-            <div>
-              ‎ 
-            </div>
-            <div>
-              ‎ 
-            </div>
-            <div>
-              ‎ 
+          </motion.div>
+
+        // 💻 STATE 2: THE CUSTOM HTML SIMULATION
+        ) : currentStep === content.length && simulationHtml ? (
+          <motion.div key="simulation" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="flex-1 flex flex-col z-10 px-2 h-full min-h-[600px]">
+            <div className="w-full h-full bg-[#070b14]/50 backdrop-blur-md rounded-[40px] overflow-hidden border border-white/10 shadow-2xl relative">
+              <iframe 
+                srcDoc={simulationHtml} 
+                className="w-full h-full border-none rounded-[40px]"
+                sandbox="allow-scripts allow-same-origin allow-forms"
+                title="Finfluent Simulation"
+              />
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      {/* 🏆 GRAVITY-BASED FIREWORKS FINALE */}
+      {/* 🏆 STATE 3: SLEEK FINALE SCREEN (Simplicity) */}
       <AnimatePresence>
         {showReward && (
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
-            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#070b14]/90 backdrop-blur-2xl overflow-hidden"
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#070b14]/95 backdrop-blur-3xl overflow-hidden"
           >
-            {/* Physics Engine Sparkles */}
-            {fireworks.map((fw) => (
-              <motion.div
-                key={fw.id}
-                initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
-                animate={{ 
-                  x: fw.x, 
-                  // Shoot up to fw.y, then gravity pulls them aggressively down (+800)
-                  y: [0, fw.y, fw.y + 800], 
-                  scale: [0, 1, 0.2], 
-                  opacity: [1, 1, 0] 
-                }}
-                transition={{ 
-                  duration: 2.5 + Math.random(), 
-                  delay: fw.delay, 
-                  // Gravity Curve
-                  ease: ["easeOut", "easeIn"],
-                  times: [0, 0.3, 1] 
-                }}
-                className="absolute rounded-full shadow-[0_0_20px_currentColor]"
-                style={{ backgroundColor: fw.color, width: fw.size, height: fw.size, color: fw.color }}
-              />
-            ))}
-
             <motion.img 
-              initial={{ y: 100, scale: 0.5, opacity: 0 }} 
+              initial={{ y: 50, scale: 0.8, opacity: 0 }} 
               animate={{ y: 0, scale: 1, opacity: 1 }} 
-              transition={{ type: "spring", bounce: 0.5, delay: 0.2 }} 
+              transition={{ type: "spring", bounce: 0.4, delay: 0.1 }} 
               src={mascot} 
               alt="Hype" 
-              className="w-64 h-64 mb-4 object-contain drop-shadow-[0_0_50px_rgba(234,179,8,0.5)] z-10" 
+              className="w-56 h-56 mb-6 object-contain drop-shadow-[0_0_40px_rgba(59,130,246,0.4)] z-10" 
             />
             
             <motion.h2 
-              initial={{ scale: 0.5, opacity: 0 }} 
+              initial={{ scale: 0.8, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
-              transition={{ type: "spring", bounce: 0.6, delay: 0.4 }} 
-              className="text-[60px] md:text-[100px] font-black leading-none text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-600 drop-shadow-[0_10px_20px_rgba(234,179,8,0.6)] z-10 text-center tracking-tighter"
+              transition={{ type: "spring", bounce: 0.5, delay: 0.3 }} 
+              className="text-[50px] md:text-[80px] font-black leading-none text-white drop-shadow-xl z-10 text-center tracking-tight"
             >
-              MODULE CLEAR!
+              MODULE CLEAR
             </motion.h2>
 
             <motion.div 
-              initial={{ scale: 0, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              transition={{ delay: 0.8, type: "spring", bounce: 0.7 }} 
-              className="flex items-center gap-6 mt-8 z-10 bg-black/40 px-12 py-6 rounded-full border border-yellow-500/50 backdrop-blur-md"
+              initial={{ y: 20, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              transition={{ delay: 0.6, type: "spring", bounce: 0.5 }} 
+              className="flex items-center gap-4 mt-8 z-10 bg-white/5 px-8 py-4 rounded-[24px] border border-white/10 shadow-2xl"
             >
-              <span className="text-6xl md:text-7xl font-black text-yellow-400 drop-shadow-[0_0_30px_rgba(234,179,8,0.8)]">+100</span>
-              <img src={fincoin} alt="Coins" className="w-20 h-20 md:w-24 md:h-24 drop-shadow-[0_0_30px_rgba(234,179,8,0.8)]" />
+              <span className="text-4xl md:text-5xl font-black text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]">+{totalModuleCoins}</span>
+              <img src={fincoin} alt="Coins" className="w-12 h-12 md:w-16 md:h-16 object-contain drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]" />
             </motion.div>
           </motion.div>
         )}
