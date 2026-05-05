@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import Lessons from './pages/Lessons';
 import Leaderboard from './pages/Leaderboard';
 import Streak from './pages/Streak'; 
+import Resources from './pages/Resources'; 
 
 import mascot from './assets/mascot.gif';
 
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/modules" element={<Lessons />} />
         <Route path="/streak" element={<Streak />} /> 
+        <Route path="/resources" element={<Resources />} /> 
         <Route path="/leaderboard" element={<Leaderboard />} />
       </Route>
 

@@ -36,6 +36,7 @@ export default function AppShell() {
     { to: '/modules', icon: BookOpen, label: 'Lessons' },
     { to: '/streak', icon: StreakIcon, label: 'Streak' }, // Replaced Flame with StreakIcon
     { to: '/leaderboard', icon: Award, label: 'Leaderboard' },
+    { to: '/resources', icon: BookOpen, label: 'Resources' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
