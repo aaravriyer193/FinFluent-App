@@ -1,83 +1,188 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Award } from 'lucide-react';
+import { Trophy, Medal, Award, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types';
-
 import fincoin from '../assets/fincoin.gif';
-import random5 from '../assets/random5.png';
 
 export default function Leaderboard() {
   const [leaders, setLeaders] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('profiles').select('*').order('lifetime_fin_coins', { ascending: false }).limit(50)
-      .then(({ data }) => { if (data) setLeaders(data); });
+    supabase
+      .from('profiles')
+      .select('*')
+      .order('lifetime_fin_coins', { ascending: false })
+      .limit(50)
+      .then(({ data }) => { if (data) setLeaders(data); setIsLoading(false); });
   }, []);
 
+  const podiumColors = [
+    { bg: '#fef9c3', border: '#fde047', text: '#713f12' },  // gold
+    { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' },  // silver
+    { bg: '#fff7ed', border: '#fed7aa', text: '#92400e' },  // bronze
+  ];
+
+  const podiumIcons = [Trophy, Medal, Award];
+
   return (
-    <div className="max-w-4xl mx-auto h-full animate-fade-in text-white py-6">
-      
-      {/* 🚀 CRISP FOREGROUND HERO CARD */}
-      <div className="flex flex-col md:flex-row items-center justify-center gap-8 mb-12 z-10 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-8 rounded-3xl border border-yellow-500/20 shadow-2xl backdrop-blur-xl">
-        <img 
-          src={random5} 
-          alt="Wealth Decor" 
-          className="w-40 h-40 object-contain drop-shadow-2xl" 
-        />
-        <div className="flex-1 text-center md:text-left">
-          <h1 className="text-4xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
-            <Trophy className="text-yellow-400" size={36} /> Hall of Wealth
-          </h1>
-          <p className="text-white/70 font-medium">
-            The highest lifetime FinCoin earners on the platform. Keep completing simulations to climb the ranks!
-          </p>
+    <div className="max-w-2xl mx-auto pb-16 animate-fade-in" style={{ color: 'var(--text-primary)' }}>
+
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="mb-6"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy size={18} style={{ color: 'var(--warning)' }} />
+          <h1 className="text-xl font-semibold" style={{ letterSpacing: '-0.025em' }}>Hall of Wealth</h1>
         </div>
-      </div>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          The highest lifetime FinCoin earners on the platform.
+        </p>
+      </motion.div>
 
-      {/* The Leaderboard List */}
-      <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-2xl">
-        {leaders.map((leader, idx) => (
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            key={leader.id} 
-            className={`flex items-center gap-4 p-4 rounded-2xl mb-3 border transition-colors ${
-              idx === 0 ? 'bg-yellow-500/10 border-yellow-500/30 shadow-inner' :
-              idx === 1 ? 'bg-gray-400/10 border-gray-400/30' :
-              idx === 2 ? 'bg-amber-700/10 border-amber-700/30' :
-              'bg-black/20 border-white/5 hover:bg-white/5'
-            }`}
-          >
-            <div className="w-10 flex justify-center font-black text-xl text-white/50">
-              {idx === 0 ? <Trophy className="text-yellow-400" /> : 
-               idx === 1 ? <Medal className="text-gray-300" /> : 
-               idx === 2 ? <Award className="text-amber-600" /> : 
-               `#${idx + 1}`}
-            </div>
-            
-            <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden border-2 border-white/10 flex-shrink-0">
-              {leader.avatar_url ? (
-                <img src={leader.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/30 font-bold">?</div>
-              )}
-            </div>
+      {/* Top 3 Podium */}
+      {leaders.length >= 3 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          className="grid grid-cols-3 gap-3 mb-5"
+        >
+          {/* Reorder: 2nd, 1st, 3rd */}
+          {[1, 0, 2].map((rank, col) => {
+            const leader = leaders[rank];
+            const palette = podiumColors[rank];
+            const Icon = podiumIcons[rank];
+            const isFirst = rank === 0;
 
-            <div className="flex-1">
-              <h3 className="font-bold text-lg">{leader.full_name || 'Anonymous Investor'}</h3>
-              <p className="text-xs text-white/50">{leader.current_title}</p>
-            </div>
+            return (
+              <div
+                key={rank}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border text-center"
+                style={{
+                  background: palette.bg,
+                  borderColor: palette.border,
+                  transform: isFirst ? 'translateY(-8px)' : 'none',
+                }}
+              >
+                <Icon size={16} style={{ color: palette.text }} />
+                <div
+                  className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border-2"
+                  style={{ borderColor: palette.border, background: 'var(--bg-base)' }}
+                >
+                  {leader.avatar_url
+                    ? <img src={leader.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-sm font-bold" style={{ color: palette.text }}>
+                        {(leader.full_name || '?')[0].toUpperCase()}
+                      </span>
+                  }
+                </div>
+                <p className="text-xs font-semibold leading-tight truncate w-full" style={{ color: 'var(--text-primary)' }}>
+                  {leader.full_name || 'Anon'}
+                </p>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-bold" style={{ color: palette.text }}>{leader.lifetime_fin_coins}</span>
+                  <img src={fincoin} className="w-3.5 h-3.5" alt="" />
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
 
-            <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-xl border border-white/10">
-              <span className="font-black text-lg">{leader.lifetime_fin_coins}</span>
-              <img src={fincoin} alt="Coins" className="w-6 h-6 object-contain" />
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      
+      {/* Full list */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="rounded-2xl border overflow-hidden"
+        style={{ background: 'var(--bg-base)', borderColor: 'var(--border-soft)' }}
+      >
+        {/* Table header */}
+        <div
+          className="grid items-center px-4 py-2.5 border-b"
+          style={{ gridTemplateColumns: '40px 1fr auto', borderColor: 'var(--border-soft)', background: 'var(--bg-subtle)' }}
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>#</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Player</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Earned</span>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading…</span>
+          </div>
+        ) : (
+          leaders.map((leader, idx) => {
+            const palette = idx < 3 ? podiumColors[idx] : null;
+            const Icon = idx < 3 ? podiumIcons[idx] : null;
+
+            return (
+              <motion.div
+                key={leader.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.03, duration: 0.3 }}
+                className="grid items-center px-4 py-3 border-b transition-colors last:border-0"
+                style={{
+                  gridTemplateColumns: '40px 1fr auto',
+                  borderColor: 'var(--border-soft)',
+                  background: idx < 3 ? palette!.bg : 'var(--bg-base)',
+                }}
+              >
+                {/* Rank */}
+                <div className="flex items-center">
+                  {Icon
+                    ? <Icon size={16} style={{ color: palette!.text }} />
+                    : <span className="text-xs font-semibold" style={{ color: 'var(--text-disabled)' }}>#{idx + 1}</span>
+                  }
+                </div>
+
+                {/* Player */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border shrink-0"
+                    style={{ background: 'var(--bg-overlay)', borderColor: 'var(--border-soft)' }}
+                  >
+                    {leader.avatar_url
+                      ? <img src={leader.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+                          {(leader.full_name || '?')[0].toUpperCase()}
+                        </span>
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {leader.full_name || 'Anonymous Investor'}
+                    </p>
+                    <p className="text-[10px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+                      {leader.current_title || '—'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Coins */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-sm font-bold" style={{ color: idx < 3 ? palette!.text : 'var(--warning)' }}>
+                    {leader.lifetime_fin_coins.toLocaleString()}
+                  </span>
+                  <img src={fincoin} alt="" className="w-5 h-5 object-contain" />
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </motion.div>
+
+      {/* Footer note */}
+      <p className="text-center text-xs mt-5" style={{ color: 'var(--text-disabled)' }}>
+        Rankings update in real-time · Based on lifetime FinCoins
+      </p>
     </div>
   );
 }

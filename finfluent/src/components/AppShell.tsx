@@ -1,137 +1,239 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Home, User, Award, BookOpen, LogOut, Activity } from 'lucide-react'; 
+import { Home, User, Award, BookOpen, LogOut, Sun, Moon } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import AIChatBot from './AIChatBot';
 
-// Using static logo for UI, keeping mascot for chat, fincoin for wealth
 import logo from '../assets/logo.png';
 import fincoin from '../assets/fincoin.gif';
-import streakGif from '../assets/Streak.gif'; // NEW: Import the animated streak gif
+import streakGif from '../assets/Streak.gif';
 
-// Custom component to make the GIF act like a Lucide Icon in the nav mapping
-const StreakIcon = ({ size, className }: { size?: number, className?: string }) => (
-  <img 
-    src={streakGif} 
-    alt="Streak" 
-    style={{ width: size, height: size }} 
-    className={`object-contain transition-all duration-300 ${className} ${className?.includes('text-white/40') ? 'grayscale opacity-60' : 'drop-shadow-[0_0_10px_rgba(249,115,22,0.8)]'}`} 
+// ── Theme hook ────────────────────────────────────────────────────────────────
+function useTheme() {
+  const [dark, setDark] = useState<boolean>(() => {
+    const stored = localStorage.getItem('finfluent-theme');
+    if (stored) return stored === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('finfluent-theme', dark ? 'dark' : 'light');
+  }, [dark]);
+
+  return { dark, toggle: () => setDark(d => !d) };
+}
+
+// ── Streak icon ───────────────────────────────────────────────────────────────
+const StreakIcon = ({ size, style }: { size?: number; style?: React.CSSProperties }) => (
+  <img
+    src={streakGif}
+    alt="Streak"
+    style={{ width: size, height: size, objectFit: 'contain', ...style }}
   />
 );
 
-const navLinkClasses = ({ isActive }: { isActive: boolean }) => 
-  `flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
-    isActive 
-      ? 'bg-blue-600/20 shadow-[inset_0_0_20px_rgba(37,99,235,0.2)] border border-blue-500/30 text-blue-400' 
-      : 'hover:bg-white/10 text-white/50 hover:text-white border border-transparent'
-  }`;
+const navItems = [
+  { to: '/dashboard',   icon: Home,       label: 'Dashboard'   },
+  { to: '/modules',     icon: BookOpen,   label: 'Lessons'     },
+  { to: '/streak',      icon: StreakIcon, label: 'Streak'      },
+  { to: '/leaderboard', icon: Award,      label: 'Leaderboard' },
+  { to: '/resources',   icon: BookOpen,   label: 'Resources'   },
+  { to: '/profile',     icon: User,       label: 'Profile'     },
+];
 
 export default function AppShell() {
   const { user } = useAppContext();
-
-  const navItems = [
-    { to: '/dashboard', icon: Home, label: 'Dashboard' },
-    { to: '/modules', icon: BookOpen, label: 'Lessons' },
-    { to: '/streak', icon: StreakIcon, label: 'Streak' }, // Replaced Flame with StreakIcon
-    { to: '/leaderboard', icon: Award, label: 'Leaderboard' },
-    { to: '/resources', icon: BookOpen, label: 'Resources' },
-    { to: '/profile', icon: User, label: 'Profile' },
-  ];
+  const { dark, toggle } = useTheme();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/login'; 
+    window.location.href = '/login';
   };
 
   return (
-    <div className="flex h-[100dvh] w-full bg-[#070b14] text-white overflow-hidden animate-fade-in relative font-sans">
-      
-      {/* 🌌 AMBIENT GLOWS */}
-      <motion.div animate={{ rotate: 360, scale: [1, 1.1, 1] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
-      <motion.div animate={{ rotate: -360, scale: [1, 1.2, 1] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
-
-      {/* ========================================== */}
-      {/* DESKTOP SIDEBAR */}
-      {/* ========================================== */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#0f172a]/70 backdrop-blur-3xl border-r border-white/5 p-6 z-20 shadow-[20px_0_50px_rgba(0,0,0,0.5)] overflow-y-auto">
-        
-        <div className="flex items-center gap-3 mb-10 shrink-0">
-          <img src={logo} alt="Finfluent" className="w-10 h-10 object-contain drop-shadow-lg" />
-          <h1 className="text-2xl font-black tracking-tight text-white">Finfluent</h1>
+    <div
+      className="flex h-[100dvh] w-full overflow-hidden font-sans"
+      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+    >
+      {/* ── DESKTOP SIDEBAR ── */}
+      <aside
+        className="hidden md:flex flex-col w-56 shrink-0 border-r overflow-y-auto"
+        style={{ background: 'var(--bg-subtle)', borderColor: 'var(--border-soft)' }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-5 pt-6 pb-5">
+          <img src={logo} alt="Finfluent" className="w-8 h-8 object-contain" />
+          <span
+            className="text-base font-bold"
+            style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+          >
+            Finfluent
+          </span>
         </div>
 
-        {/* Wealth Display */}
-        <div className="mb-8 p-4 rounded-2xl bg-gradient-to-br from-black/40 to-black/60 border border-white/10 flex items-center justify-between shadow-inner shrink-0">
-          <div className="flex flex-col z-10">
-            <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Wealth</span>
-            <span className="font-black text-xl text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{user?.spendable_fin_coins || 0}</span>
+        {/* Wealth chip */}
+        <div
+          className="mx-4 mb-5 flex items-center justify-between px-3 py-2.5 rounded-xl border"
+          style={{ background: 'var(--bg-base)', borderColor: 'var(--border-default)' }}
+        >
+          <div>
+            <p
+              className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Wealth
+            </p>
+            <p className="text-sm font-bold" style={{ color: 'var(--warning)' }}>
+              {user?.spendable_fin_coins || 0}
+            </p>
           </div>
-          <img src={fincoin} alt="FinCoins" className="w-10 h-10 object-contain z-10" />
+          <img src={fincoin} alt="FinCoins" className="w-7 h-7 object-contain" />
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex flex-col gap-2 flex-1 relative z-10">
+        {/* Nav links */}
+        <nav className="flex flex-col gap-0.5 px-3 flex-1">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={navLinkClasses}>
-              <item.icon size={20} />
-              <span className="font-bold">{item.label}</span>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '9px 12px',
+                borderRadius: 8,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+                background: isActive ? 'var(--accent-subtle)' : 'transparent',
+                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+              })}
+            >
+              <item.icon size={16} />
+              {item.label}
             </NavLink>
           ))}
         </nav>
 
-        {/* Desktop Logout Button */}
-        <button 
-          onClick={handleLogout}
-          className="mt-8 shrink-0 flex items-center gap-3 p-3 rounded-xl text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all font-bold group z-10"
-        >
-          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> Logout
-        </button>
+        {/* Bottom controls */}
+        <div className="mx-4 mb-6 flex flex-col gap-1 pt-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggle}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+            style={{ color: 'var(--text-tertiary)', background: 'transparent' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-overlay)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span className="flex items-center gap-2.5">
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              {dark ? 'Light mode' : 'Dark mode'}
+            </span>
+            {/* Pill toggle */}
+            <div
+              className="relative w-8 h-4 rounded-full transition-colors duration-200 shrink-0"
+              style={{ background: dark ? 'var(--accent)' : 'var(--bg-overlay)' }}
+            >
+              <div
+                className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-sm"
+                style={{ transform: dark ? 'translateX(18px)' : 'translateX(2px)' }}
+              />
+            </div>
+          </button>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#e53e3e')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
       </aside>
 
-      {/* ========================================== */}
-      {/* MOBILE TOP BAR */}
-      {/* ========================================== */}
-      <header className="md:hidden fixed top-0 left-0 w-full h-16 bg-[#0f172a]/90 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-4 z-40 shadow-lg">
+      {/* ── MOBILE TOP BAR ── */}
+      <header
+        className="md:hidden fixed top-0 left-0 w-full h-14 flex items-center justify-between px-4 z-40 border-b"
+        style={{ background: 'var(--bg-subtle)', borderColor: 'var(--border-soft)' }}
+      >
         <div className="flex items-center gap-2">
-          <img src={logo} alt="Finfluent" className="w-8 h-8 object-contain" />
-          <h1 className="text-lg font-black tracking-tight">Finfluent</h1>
+          <img src={logo} alt="Finfluent" className="w-7 h-7 object-contain" />
+          <span
+            className="text-sm font-bold"
+            style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+          >
+            Finfluent
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 bg-black/50 px-3 py-1.5 rounded-full border border-white/10 shadow-inner">
-            <span className="font-black text-sm text-yellow-400">{user?.spendable_fin_coins || 0}</span>
-            <img src={fincoin} alt="Coins" className="w-4 h-4 object-contain" />
+
+        <div className="flex items-center gap-2">
+          {/* Mobile theme toggle — icon only */}
+          <button
+            onClick={toggle}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border transition-all"
+            style={{
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-base)',
+            }}
+            aria-label="Toggle theme"
+          >
+            {dark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold"
+            style={{
+              background: 'var(--bg-base)',
+              borderColor: 'var(--border-default)',
+              color: 'var(--warning)',
+            }}
+          >
+            {user?.spendable_fin_coins || 0}
+            <img src={fincoin} className="w-4 h-4 object-contain" alt="" />
           </div>
-          <button onClick={handleLogout} className="text-white/50 hover:text-red-400 transition-colors">
-            <LogOut size={20} />
+
+          <button onClick={handleLogout} style={{ color: 'var(--text-tertiary)' }}>
+            <LogOut size={18} />
           </button>
         </div>
       </header>
 
-      {/* ========================================== */}
-      {/* MAIN CONTENT AREA */}
-      {/* ========================================== */}
-      <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative pt-16 md:pt-0 pb-20 md:pb-0 z-10">
-        <div className="p-4 md:p-8 max-w-6xl mx-auto h-full animate-slide-up">
+      {/* ── MAIN CONTENT ── */}
+      <main className="flex-1 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 pb-20 md:pb-0">
+        <div className="p-4 md:p-8 max-w-6xl mx-auto">
           <Outlet />
         </div>
       </main>
 
-      {/* ========================================== */}
-      {/* MOBILE BOTTOM NAVBAR */}
-      {/* ========================================== */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#0f172a]/95 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center p-2 pb-6 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-2 pt-2 z-40 border-t"
+        style={{
+          background: 'var(--bg-subtle)',
+          borderColor: 'var(--border-soft)',
+          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
+        }}
+      >
         {navItems.map((item) => (
-          <NavLink 
-            key={item.to} 
-            to={item.to} 
-            className={({ isActive }) => `p-3 rounded-2xl transition-all shrink-0 ${isActive ? 'bg-blue-600/20 shadow-inner' : ''}`}
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className="p-2.5 rounded-lg transition-all"
           >
             {({ isActive }) => (
-              <item.icon 
-                size={24} 
-                className={isActive ? 'text-blue-400 drop-shadow-[0_0_10px_rgba(37,99,235,0.8)]' : 'text-white/40'} 
+              <item.icon
+                size={22}
+                style={{ color: isActive ? 'var(--accent)' : 'var(--text-disabled)' }}
               />
             )}
           </NavLink>
