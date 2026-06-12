@@ -198,6 +198,7 @@ export default function Module() {
   }
 
   const totalSteps = simulationHtml ? content.length + 1 : content.length;
+  const isAnswerSelected = selectedAnswer !== null;
 
   return (
     <div className="flex flex-col gap-4 pb-8" style={{ color: 'var(--text-primary)' }}>
@@ -278,7 +279,7 @@ export default function Module() {
       {/* Content area */}
       <AnimatePresence mode="wait">
 
-        {/* STATE 1: Video + Quiz — side by side on desktop, stacked on mobile */}
+        {/* STATE 1: Video + Quiz */}
         {currentStep < content.length && activeStepData && (
           <motion.div
             key={`step-${currentStep}`}
@@ -292,7 +293,6 @@ export default function Module() {
               className="flex-1 rounded-2xl border overflow-hidden"
               style={{ background: 'var(--bg-subtle)', borderColor: 'var(--border-soft)' }}
             >
-              {/* Title bar */}
               <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
                 <PlayCircle size={15} style={{ color: 'var(--accent)' }} />
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -300,11 +300,6 @@ export default function Module() {
                 </span>
               </div>
 
-              {/*
-                THE FIX: intrinsic-ratio container.
-                padding-bottom 56.25% = 16:9. The iframe sits absolute inside.
-                No flex, no aspect-video, no height:100% — avoids all overflow bugs.
-              */}
               <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', background: '#000' }}>
                 <iframe
                   src={`https://www.youtube.com/embed/${activeStepData.video_id}?controls=1`}
@@ -335,11 +330,12 @@ export default function Module() {
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Quick check</span>
               </div>
 
-              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
+              {/* Added whitespace-normal break-words to handle long questions */}
+              <p className="text-sm leading-relaxed mb-4 whitespace-normal break-words" style={{ color: 'var(--text-secondary)' }}>
                 {activeStepData.question_text}
               </p>
 
-              <div className="flex flex-col gap-2 mb-4">
+              <div className="flex flex-col gap-3 mb-4">
                 {(['A', 'B'] as const).map(opt => {
                   const label = opt === 'A' ? activeStepData.option_a : activeStepData.option_b;
                   const isSelected = selectedAnswer === opt;
@@ -361,11 +357,13 @@ export default function Module() {
                       transition={{ duration: 0.35 }}
                       onClick={() => handleAnswer(opt)}
                       disabled={!!selectedAnswer}
-                      className="w-full flex items-center gap-3 rounded-xl border text-left text-sm font-medium transition-all duration-150"
-                      style={{ background: bg, borderColor, color: textColor, padding: '10px 12px' }}
+                      // FIX: h-auto to let it grow, items-start to keep the badge at the top
+                      className="w-full h-auto flex items-start gap-3 rounded-xl border text-left text-sm font-medium transition-all duration-150"
+                      style={{ background: bg, borderColor, color: textColor, padding: '12px 14px' }}
                     >
                       <span
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                        // FIX: mt-0.5 to perfectly align the badge with the first line of text
+                        className="w-6 h-6 mt-0.5 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
                         style={{
                           background: isSelected || (answered && correct && !isCorrect) ? borderColor : 'var(--bg-overlay)',
                           color: isSelected || (answered && correct && !isCorrect) ? '#fff' : 'var(--text-tertiary)',
@@ -373,21 +371,25 @@ export default function Module() {
                       >
                         {opt}
                       </span>
-                      {label}
+                      {/* FIX: flex-1, whitespace-normal, and break-words force the text to wrap inside the bounds */}
+                      <span className="flex-1 whitespace-normal break-words leading-relaxed">
+                        {label}
+                      </span>
                     </motion.button>
                   );
                 })}
               </div>
-
+              
+              {/* Disabled check modified to allow continuation as long as an answer is selected */}
               <button
                 onClick={advanceStep}
-                disabled={!isCorrect || isSaving}
+                disabled={!isAnswerSelected || isSaving}
                 className="mt-auto w-full flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-150"
                 style={{
                   padding: '11px 16px',
-                  background: isCorrect ? 'var(--accent)' : 'var(--bg-overlay)',
-                  color: isCorrect ? '#fff' : 'var(--text-disabled)',
-                  cursor: isCorrect ? 'pointer' : 'not-allowed',
+                  background: isAnswerSelected ? 'var(--accent)' : 'var(--bg-overlay)',
+                  color: isAnswerSelected ? '#fff' : 'var(--text-disabled)',
+                  cursor: isAnswerSelected ? 'pointer' : 'not-allowed',
                   border: 'none',
                 }}
               >

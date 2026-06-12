@@ -24,6 +24,7 @@ import Lessons     from './pages/Lessons';
 import Leaderboard from './pages/Leaderboard';
 import Streak      from './pages/Streak';
 import Resources   from './pages/Resources';
+import Discover    from './pages/Discover';
 
 import mascot from './assets/mascot.gif';
 
@@ -139,6 +140,7 @@ export default function App() {
         <Route path="/leaderboard"      element={<Leaderboard />} />
         <Route path="/resources"        element={<Resources />} />
         <Route path="/profile"          element={<Profile />} />
+        <Route path="/discover"         element={<Discover />} />
       </Route>
 
       {/* ── Catch-all → root handles logic ─────────────────────── */}

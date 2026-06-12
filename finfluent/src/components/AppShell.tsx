@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, User, Award, BookOpen, LogOut, Sun, Moon } from 'lucide-react';
+import { Home, User, Award, BookOpen, LogOut, Sun, Moon, Compass } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import AIChatBot from './AIChatBot';
@@ -27,7 +27,7 @@ function useTheme() {
 }
 
 // ── Streak icon ───────────────────────────────────────────────────────────────
-const StreakIcon = ({ size, style }: { size?: number; style?: React.CSSProperties }) => (
+const StreakIcon = ({ size, style, color }: { size?: number; style?: React.CSSProperties, color?: string }) => (
   <img
     src={streakGif}
     alt="Streak"
@@ -41,6 +41,7 @@ const navItems = [
   { to: '/streak',      icon: StreakIcon, label: 'Streak'      },
   { to: '/leaderboard', icon: Award,      label: 'Leaderboard' },
   { to: '/resources',   icon: BookOpen,   label: 'Resources'   },
+  { to: '/discover',    icon: Compass,    label: 'Discover'    },
   { to: '/profile',     icon: User,       label: 'Profile'     },
 ];
 
@@ -165,6 +166,7 @@ export default function AppShell() {
         className="md:hidden fixed top-0 left-0 w-full h-14 flex items-center justify-between px-4 z-40 border-b"
         style={{ background: 'var(--bg-subtle)', borderColor: 'var(--border-soft)' }}
       >
+        {/* Left side: Logo */}
         <div className="flex items-center gap-2">
           <img src={logo} alt="Finfluent" className="w-7 h-7 object-contain" />
           <span
@@ -175,21 +177,29 @@ export default function AppShell() {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Mobile theme toggle — icon only */}
+        {/* Right side: Actions */}
+        <div className="flex items-center gap-3">
+          
+          {/* THEME TOGGLE FOR PHONE */}
           <button
             onClick={toggle}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border transition-all"
+            className="relative w-8 h-8 flex items-center justify-center rounded-full border transition-transform active:scale-90"
             style={{
-              borderColor: 'var(--border-default)',
-              color: 'var(--text-secondary)',
               background: 'var(--bg-base)',
+              borderColor: 'var(--border-default)',
             }}
             aria-label="Toggle theme"
           >
-            {dark ? <Sun size={15} /> : <Moon size={15} />}
+            {/* The wrapper forces currentColor inheritance with safe hex codes */}
+            <span 
+              className="flex items-center justify-center" 
+              style={{ color: dark ? '#eab308' : '#64748b' }}
+            >
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+            </span>
           </button>
 
+          {/* Coin Chip */}
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold"
             style={{
@@ -199,10 +209,15 @@ export default function AppShell() {
             }}
           >
             {user?.spendable_fin_coins || 0}
-            <img src={fincoin} className="w-4 h-4 object-contain" alt="" />
+            <img src={fincoin} className="w-4 h-4 object-contain" alt="Coins" />
           </div>
 
-          <button onClick={handleLogout} style={{ color: 'var(--text-tertiary)' }}>
+          {/* Logout Button */}
+          <button 
+            onClick={handleLogout} 
+            className="p-1 active:scale-90 transition-transform" 
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             <LogOut size={18} />
           </button>
         </div>
@@ -228,14 +243,18 @@ export default function AppShell() {
           <NavLink
             key={item.to}
             to={item.to}
-            className="p-2.5 rounded-lg transition-all"
+            className="p-2.5 rounded-lg transition-all flex items-center justify-center"
           >
-            {({ isActive }) => (
-              <item.icon
-                size={22}
-                style={{ color: isActive ? 'var(--accent)' : 'var(--text-disabled)' }}
-              />
-            )}
+            {({ isActive }) => {
+              const iconColor = isActive ? 'var(--accent)' : 'var(--text-disabled)';
+              return (
+                <item.icon
+                  size={22}
+                  color={iconColor}
+                  style={{ color: iconColor }}
+                />
+              );
+            }}
           </NavLink>
         ))}
       </nav>

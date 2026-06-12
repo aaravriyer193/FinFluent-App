@@ -1,230 +1,337 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Lock, Check, MapPin, Loader2,
+  Lock, Check,
   Book, Wallet, PiggyBank, TrendingUp, Landmark,
   LineChart, Coins, CreditCard, Gem, ShieldCheck,
   Briefcase, BarChart, PieChart, Target, Rocket, Crown,
-  ArrowRight,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
-import type { UserProgress } from '../types';
 import mascot from '../assets/mascot.gif';
 
+// ── config ────────────────────────────────────────────────────────────────────
+
 const MODULE_CONFIG = [
-  { icon: Book,        color: 'text-blue-500',    bg: 'bg-blue-50',    border: 'border-blue-200',   dot: '#3b82f6' },
-  { icon: Wallet,      color: 'text-teal-500',    bg: 'bg-teal-50',    border: 'border-teal-200',   dot: '#14b8a6' },
-  { icon: PiggyBank,   color: 'text-green-500',   bg: 'bg-green-50',   border: 'border-green-200',  dot: '#22c55e' },
-  { icon: TrendingUp,  color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200',dot: '#10b981' },
-  { icon: Landmark,    color: 'text-purple-500',  bg: 'bg-purple-50',  border: 'border-purple-200', dot: '#a855f7' },
-  { icon: LineChart,   color: 'text-fuchsia-500', bg: 'bg-fuchsia-50', border: 'border-fuchsia-200',dot: '#d946ef' },
-  { icon: Coins,       color: 'text-pink-500',    bg: 'bg-pink-50',    border: 'border-pink-200',   dot: '#ec4899' },
-  { icon: CreditCard,  color: 'text-rose-500',    bg: 'bg-rose-50',    border: 'border-rose-200',   dot: '#f43f5e' },
-  { icon: Gem,         color: 'text-orange-500',  bg: 'bg-orange-50',  border: 'border-orange-200', dot: '#f97316' },
-  { icon: ShieldCheck, color: 'text-amber-500',   bg: 'bg-amber-50',   border: 'border-amber-200',  dot: '#f59e0b' },
-  { icon: Briefcase,   color: 'text-indigo-500',  bg: 'bg-indigo-50',  border: 'border-indigo-200', dot: '#6366f1' },
-  { icon: BarChart,    color: 'text-violet-500',  bg: 'bg-violet-50',  border: 'border-violet-200', dot: '#8b5cf6' },
-  { icon: PieChart,    color: 'text-cyan-500',    bg: 'bg-cyan-50',    border: 'border-cyan-200',   dot: '#06b6d4' },
-  { icon: Target,      color: 'text-sky-500',     bg: 'bg-sky-50',     border: 'border-sky-200',    dot: '#0ea5e9' },
-  { icon: Rocket,      color: 'text-red-500',     bg: 'bg-red-50',     border: 'border-red-200',    dot: '#ef4444' },
-  { icon: Crown,       color: 'text-yellow-500',  bg: 'bg-yellow-50',  border: 'border-yellow-200', dot: '#eab308' },
+  { icon: Book,        color: '#6366f1', bg: '#eef2ff', shadow: '#c7d2fe', label: 'Basics'     },
+  { icon: Wallet,      color: '#14b8a6', bg: '#f0fdfa', shadow: '#99f6e4', label: 'Budgeting'  },
+  { icon: PiggyBank,   color: '#22c55e', bg: '#f0fdf4', shadow: '#bbf7d0', label: 'Saving'     },
+  { icon: TrendingUp,  color: '#f59e0b', bg: '#fffbeb', shadow: '#fde68a', label: 'Growth'     },
+  { icon: Landmark,    color: '#a855f7', bg: '#faf5ff', shadow: '#e9d5ff', label: 'Banking'    },
+  { icon: LineChart,   color: '#ec4899', bg: '#fdf2f8', shadow: '#fbcfe8', label: 'Markets'    },
+  { icon: Coins,       color: '#f97316', bg: '#fff7ed', shadow: '#fed7aa', label: 'Crypto'     },
+  { icon: CreditCard,  color: '#ef4444', bg: '#fef2f2', shadow: '#fecaca', label: 'Credit'     },
+  { icon: Gem,         color: '#8b5cf6', bg: '#f5f3ff', shadow: '#ddd6fe', label: 'Assets'     },
+  { icon: ShieldCheck, color: '#0ea5e9', bg: '#f0f9ff', shadow: '#bae6fd', label: 'Insurance'  },
+  { icon: Briefcase,   color: '#10b981', bg: '#ecfdf5', shadow: '#a7f3d0', label: 'Career'     },
+  { icon: BarChart,    color: '#d946ef', bg: '#fdf4ff', shadow: '#f5d0fe', label: 'Analysis'   },
+  { icon: PieChart,    color: '#06b6d4', bg: '#ecfeff', shadow: '#a5f3fc', label: 'Portfolio'  },
+  { icon: Target,      color: '#3b82f6', bg: '#eff6ff', shadow: '#bfdbfe', label: 'Goals'      },
+  { icon: Rocket,      color: '#f43f5e', bg: '#fff1f2', shadow: '#fecdd3', label: 'Advanced'   },
+  { icon: Crown,       color: '#eab308', bg: '#fefce8', shadow: '#fef08a', label: 'Mastery'    },
 ];
 
-export default function Lessons() {
-  const { user } = useAppContext();
-  const navigate = useNavigate();
+// sine-wave path: nodes alternate left / center / right in a smooth S-curve
+const WAVE = [0, 0.6, 1, 0.6, 0, -0.6, -1, -0.6, 0, 0.6, 1, 0.6, 0, -0.6, -1, -0.6];
 
-  const [progress, setProgress] = useState<UserProgress[]>([]);
-  const [modules, setModules] = useState<{ id: number; title: string; description: string }[]>([]);
+const NODE_R   = 36;   // node radius
+const SPACING  = 108;  // vertical gap between node centres
+const CX       = 160;  // horizontal centre of the SVG
+const SWAY     = 68;   // max horizontal offset from centre
+const SVG_W    = 320;
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function nodeX(i)  { return CX + WAVE[i % WAVE.length] * SWAY; }
+function nodeY(i)  { return NODE_R + 24 + i * SPACING; }
+
+// cubic bezier control points for a smooth winding path
+function pathD(ax, ay, bx, by) {
+  const cy1 = ay + SPACING * 0.5;
+  const cy2 = by - SPACING * 0.5;
+  return `M ${ax} ${ay} C ${ax} ${cy1}, ${bx} ${cy2}, ${bx} ${by}`;
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
+
+export default function Lessons() {
+  const { user }   = useAppContext();
+  const navigate   = useNavigate();
+
+  const [progress,  setProgress]  = useState([]);
+  const [modules,   setModules]   = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hovered,   setHovered]   = useState(null);
 
   useEffect(() => {
     if (!user) return;
-    const fetchRoadmapData = async () => {
+    (async () => {
       try {
-        const [progressRes, modulesRes] = await Promise.all([
+        const [pRes, mRes] = await Promise.all([
           supabase.from('user_progress').select('*').eq('user_id', user.id),
           supabase.from('modules').select('*').order('id', { ascending: true }),
         ]);
-        if (progressRes.data) setProgress(progressRes.data);
-        if (modulesRes.data) setModules(modulesRes.data);
-      } catch (error) {
-        console.error('Error fetching roadmap data:', error);
+        if (pRes.data) setProgress(pRes.data);
+        if (mRes.data) setModules(mRes.data);
+      } catch (e) {
+        console.error(e);
       } finally {
         setIsLoading(false);
       }
-    };
-    fetchRoadmapData();
+    })();
   }, [user]);
 
-  const checkStatus = (modNum: number) => {
-    if (modNum === 1)
-      return progress.find(p => p.module_id === 1)?.status === 'completed' ? 'completed' : 'unlocked';
-    const prevMod = progress.find(p => p.module_id === modNum - 1);
-    const currMod = progress.find(p => p.module_id === modNum);
-    if (currMod?.status === 'completed') return 'completed';
-    if (prevMod?.status === 'completed') return 'unlocked';
+  const status = (n) => {
+    if (n === 1) return progress.find(p => p.module_id === 1)?.status === 'completed' ? 'completed' : 'unlocked';
+    const prev = progress.find(p => p.module_id === n - 1);
+    const curr = progress.find(p => p.module_id === n);
+    if (curr?.status === 'completed') return 'completed';
+    if (prev?.status === 'completed') return 'unlocked';
     return 'locked';
   };
 
-  const completedCount = MODULE_CONFIG.filter((_, i) => checkStatus(i + 1) === 'completed').length;
+  const completedCount = MODULE_CONFIG.filter((_, i) => status(i + 1) === 'completed').length;
+  const pct            = Math.round((completedCount / MODULE_CONFIG.length) * 100);
+
+  const SVG_H = nodeY(MODULE_CONFIG.length - 1) + NODE_R + 40;
 
   if (isLoading) {
     return (
-      <div
-        className="h-full flex flex-col items-center justify-center gap-3"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
-        <img src={mascot} className="w-12 h-12 object-contain opacity-50" alt="" />
-        <span className="text-xs font-medium">Loading curriculum…</span>
+      <div className="h-full flex flex-col items-center justify-center gap-3" style={{ color: 'var(--text-tertiary)' }}>
+        <img src={mascot} className="w-10 h-10 object-contain opacity-40" alt="" />
+        <span className="text-xs">Loading…</span>
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-full pb-16"
-      style={{ color: 'var(--text-primary)' }}
-    >
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="mb-6"
-      >
-        <h1
-          className="text-2xl font-semibold mb-1"
-          style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}
-        >
-          Your Roadmap
-        </h1>
-        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-          Complete each module to unlock the next. {completedCount} of {MODULE_CONFIG.length} cleared.
-        </p>
+    <div className="min-h-full flex flex-col items-center pb-28" style={{ color: 'var(--text-primary)' }}>
 
-        {/* Progress bar */}
-        <div className="flex items-center gap-3 mt-4">
-          <div className="flex-1 h-1 rounded-full" style={{ background: 'var(--bg-overlay)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${(completedCount / 16) * 100}%`, background: 'var(--accent)' }}
-            />
+      {/* ── Header ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-xs px-4 pt-6 pb-4"
+      >
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.1em' }}>
+              Your path
+            </p>
+            <h1 className="text-2xl font-bold" style={{ letterSpacing: '-0.035em', color: 'var(--text-primary)' }}>
+              Roadmap
+            </h1>
           </div>
-          <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-            {Math.round((completedCount / 16) * 100)}%
-          </span>
+          <div className="text-right">
+            <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--accent)', letterSpacing: '-0.04em' }}>{pct}%</p>
+            <p className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              {completedCount}/{MODULE_CONFIG.length} done
+            </p>
+          </div>
+        </div>
+
+        {/* progress bar */}
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-overlay)' }}>
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'var(--accent)' }}
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          />
         </div>
       </motion.div>
 
-      {/* Module list */}
-      <div className="flex flex-col gap-2">
-        {MODULE_CONFIG.map((config, i) => {
-          const modNum = i + 1;
-          const status = checkStatus(modNum);
-          const modData = modules.find(m => m.id === modNum);
-          const Icon = config.icon;
-          const isUnlocked = status !== 'locked';
-          const isCompleted = status === 'completed';
-          const isCurrent = status === 'unlocked';
+      {/* ── Map ── */}
+      <div style={{ width: '100%', maxWidth: 360, position: 'relative' }}>
+        <svg
+          width="100%"
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+          preserveAspectRatio="xMidYMin meet"
+          style={{ overflow: 'visible' }}
+        >
+          {/* ── trail segments ── */}
+          {MODULE_CONFIG.slice(0, -1).map((_, i) => {
+            const ax = nodeX(i),   ay = nodeY(i);
+            const bx = nodeX(i+1), by = nodeY(i+1);
+            const st = status(i + 1);
+            const done = st === 'completed';
 
-          return (
-            <motion.div
-              key={modNum}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.025, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              onClick={() => isUnlocked && navigate(`/module/${modNum}`)}
-              className={`group flex items-center gap-4 p-4 rounded-xl border transition-all duration-150 ${isUnlocked ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
-              style={{
-                background: isCompleted ? 'var(--bg-subtle)' : 'var(--bg-base)',
-                borderColor: isCurrent ? 'var(--accent)' : isCompleted ? 'var(--border-soft)' : 'var(--border-soft)',
-                boxShadow: isCurrent ? '0 0 0 1px var(--accent)' : 'none',
-              }}
-              onMouseEnter={e => {
-                if (isUnlocked)
-                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = isCurrent
-                  ? 'var(--accent)'
-                  : isCompleted
-                  ? 'var(--border-soft)'
-                  : 'var(--border-soft)';
-              }}
-            >
-              {/* Icon */}
-              <div
-                className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border ${
-                  isCompleted
-                    ? 'bg-amber-50 border-amber-100'
-                    : isUnlocked
-                    ? `${config.bg} ${config.border}`
-                    : 'bg-gray-50 border-gray-100'
-                }`}
-              >
-                {isCompleted ? (
-                  <Check size={18} className="text-amber-500" />
-                ) : isUnlocked ? (
-                  <Icon size={18} className={config.color} />
-                ) : (
-                  <Lock size={14} style={{ color: 'var(--text-disabled)' }} />
+            return (
+              <g key={`trail-${i}`}>
+                {/* base track */}
+                <path
+                  d={pathD(ax, ay, bx, by)}
+                  fill="none"
+                  stroke="#e2e8f0"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                />
+                {/* filled if done */}
+                {done && (
+                  <path
+                    d={pathD(ax, ay, bx, by)}
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                  />
                 )}
-              </div>
+                {/* dashed if next is current */}
+                {!done && status(i + 2) === 'unlocked' && (
+                  <path
+                    d={pathD(ax, ay, bx, by)}
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray="6 7"
+                  />
+                )}
+              </g>
+            );
+          })}
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider"
-                    style={{ color: isUnlocked ? 'var(--text-tertiary)' : 'var(--text-disabled)' }}
-                  >
-                    Module {modNum}
-                  </span>
-                  {isCompleted && (
-                    <span
-                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                      style={{ background: 'var(--warning-subtle)', color: 'var(--warning)' }}
-                    >
-                      Cleared
-                    </span>
-                  )}
-                  {isCurrent && (
-                    <span
-                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                      style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
-                    >
-                      Up next
-                    </span>
-                  )}
-                </div>
-                <p
-                  className="text-sm font-semibold truncate"
-                  style={{ color: isUnlocked ? 'var(--text-primary)' : 'var(--text-disabled)' }}
+          {/* ── nodes ── */}
+          {MODULE_CONFIG.map((cfg, i) => {
+            const modNum   = i + 1;
+            const st       = status(modNum);
+            const isCompleted = st === 'completed';
+            const isUnlocked  = st === 'unlocked';
+            const isLocked    = st === 'locked';
+            const clickable   = isCompleted || isUnlocked;
+            const modData  = modules.find(m => m.id === modNum);
+            const Icon     = cfg.icon;
+            const cx       = nodeX(i);
+            const cy       = nodeY(i);
+            const labelRight = WAVE[i % WAVE.length] <= 0; // label on right if node is left-ish
+
+            // colors
+            const ringColor  = isCompleted ? '#22c55e' : isUnlocked ? cfg.color : '#e2e8f0';
+            const fillColor  = isCompleted ? '#f0fdf4' : isUnlocked ? cfg.bg    : '#f8fafc';
+            const iconColor  = isCompleted ? '#16a34a' : isUnlocked ? cfg.color : '#94a3b8';
+            const shadowColor= isCompleted ? '#bbf7d0' : isUnlocked ? cfg.shadow: '#f1f5f9';
+
+            return (
+              <g key={modNum}>
+                {/* pulse ring for current */}
+                {isUnlocked && (
+                  <motion.circle
+                    cx={cx} cy={cy}
+                    r={NODE_R + 6}
+                    fill="none"
+                    stroke={cfg.color}
+                    strokeWidth="2"
+                    animate={{ r: [NODE_R + 4, NODE_R + 14], opacity: [0.5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                  />
+                )}
+
+                {/* shadow */}
+                <circle cx={cx} cy={cy + 5} r={NODE_R} fill={shadowColor} opacity={0.7} />
+
+                {/* main circle */}
+                <motion.circle
+                  cx={cx} cy={cy}
+                  r={NODE_R}
+                  fill={fillColor}
+                  stroke={ringColor}
+                  strokeWidth={isUnlocked ? 3 : 2.5}
+                  style={{ cursor: clickable ? 'pointer' : 'default' }}
+                  onClick={() => clickable && navigate(`/module/${modNum}`)}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                  whileHover={clickable ? { scale: 1.1 } : {}}
+                  whileTap={clickable ? { scale: 0.93 } : {}}
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: i * 0.03, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+                />
+
+                {/* completed crown ring */}
+                {isCompleted && (
+                  <circle
+                    cx={cx} cy={cy}
+                    r={NODE_R - 7}
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="1.5"
+                    strokeDasharray="3 4"
+                    opacity={0.6}
+                  />
+                )}
+
+                {/* icon via foreignObject */}
+                <foreignObject
+                  x={cx - 14} y={cy - 14}
+                  width={28} height={28}
+                  style={{ pointerEvents: 'none', overflow: 'visible' }}
                 >
-                  {isUnlocked ? (modData?.title || `Module ${modNum}`) : 'Locked'}
-                </p>
-                {isUnlocked && modData?.description && (
-                  <p
-                    className="text-xs truncate mt-0.5"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
-                    {modData.description}
-                  </p>
-                )}
-              </div>
+                  <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: iconColor }}>
+                    {isCompleted
+                      ? <Check size={18} strokeWidth={3} />
+                      : isLocked
+                      ? <Lock size={14} strokeWidth={2} />
+                      : <Icon size={18} strokeWidth={1.7} />
+                    }
+                  </div>
+                </foreignObject>
 
-              {/* Arrow */}
-              {isUnlocked && !isCompleted && (
-                <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ArrowRight size={15} style={{ color: 'var(--accent)' }} />
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+                {/* module number above node */}
+                <text
+                  x={cx}
+                  y={cy - NODE_R - 6}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fontWeight="700"
+                  fill={isLocked ? '#cbd5e1' : isCompleted ? '#22c55e' : cfg.color}
+                  style={{ userSelect: 'none', letterSpacing: '0.04em' }}
+                >
+                  {isCompleted ? '✓' : `${modNum}`}
+                </text>
+
+                {/* inline label pill — always visible, to the side */}
+                <foreignObject
+                  x={labelRight ? cx + NODE_R + 8 : cx - NODE_R - 8 - 110}
+                  y={cy - 18}
+                  width={110}
+                  height={36}
+                  style={{ pointerEvents: 'none', overflow: 'visible' }}
+                >
+                  <div style={{
+                    height: 36,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: labelRight ? 'flex-start' : 'flex-end',
+                  }}>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: isLocked ? '#94a3b8' : isCompleted ? '#15803d' : cfg.color,
+                      lineHeight: 1.2,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {isLocked ? 'Locked' : (modData?.title || cfg.label)}
+                    </span>
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 500,
+                      color: '#94a3b8',
+                      lineHeight: 1.2,
+                      letterSpacing: '0.03em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      Module {modNum}
+                    </span>
+                  </div>
+                </foreignObject>
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );

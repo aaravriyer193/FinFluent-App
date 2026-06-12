@@ -19,9 +19,9 @@ export default function Leaderboard() {
   }, []);
 
   const podiumColors = [
-    { bg: '#fef9c3', border: '#fde047', text: '#713f12' },  // gold
-    { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' },  // silver
-    { bg: '#fff7ed', border: '#fed7aa', text: '#92400e' },  // bronze
+    { bg: '#dfd13a', border: '#fde047', text: '#713f12' },  // gold
+    { bg: '#96aabd', border: '#cbd5e1', text: '#475569' },  // silver
+    { bg: '#ce8730', border: '#fed7aa', text: '#92400e' },  // bronze
   ];
 
   const podiumIcons = [Trophy, Medal, Award];
